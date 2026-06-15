@@ -1,0 +1,131 @@
+<div class="register-container">
+  <div class="page-header">
+    <h2>
+      <i class="bi bi-person-plus me-2"></i>
+      Register New Instructor
+    </h2>
+    <p class="text-muted">Add a new instructor to the system</p>
+  </div>
+
+  <div class="register-card">
+    <form #form="ngForm" (ngSubmit)="onSubmit()" novalidate>
+
+      <div class="alert alert-danger" *ngIf="error">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        {{ error }}
+      </div>
+
+      <div class="row g-3">
+
+        <div class="col-md-6">
+          <label class="form-label">
+            Full Name <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            class="form-control"
+            name="full_name"
+            [(ngModel)]="formData.full_name"
+            required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">
+            Username <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            class="form-control"
+            name="username"
+            [(ngModel)]="formData.username"
+            required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">
+            Email <span class="text-danger">*</span>
+          </label>
+          <input
+            type="email"
+            class="form-control"
+            name="email"
+            [(ngModel)]="formData.email"
+            required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Phone</label>
+          <input
+            type="tel"
+            class="form-control"
+            name="phone"
+            [(ngModel)]="formData.phone">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">
+            Password <span class="text-danger">*</span>
+          </label>
+          <div class="input-group">
+            <input
+              class="form-control"
+              name="password"
+              [type]="showPassword ? 'text' : 'password'"
+              [(ngModel)]="formData.password"
+              required>
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              (click)="showPassword = !showPassword">
+              <i class="bi"
+                 [class.bi-eye]="!showPassword"
+                 [class.bi-eye-slash]="showPassword">
+              </i>
+            </button>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">
+            Confirm Password <span class="text-danger">*</span>
+          </label>
+          <input
+            type="password"
+            class="form-control"
+            name="confirmPassword"
+            [(ngModel)]="confirmPassword"
+            required>
+        </div>
+
+      </div>
+
+      <div class="form-actions mt-4">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="cancel()">
+          <i class="bi bi-x-circle me-2"></i>
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          class="btn btn-primary"
+          [disabled]="loading || form.invalid">
+
+          <span *ngIf="!loading">
+            <i class="bi bi-check-circle me-2"></i>
+            Register Instructor
+          </span>
+
+          <span *ngIf="loading">
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Registering...
+          </span>
+
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>

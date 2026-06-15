@@ -1,0 +1,403 @@
+.vehicle-management-container {
+  padding: 30px;
+}
+
+.custom-tabs {
+  border: none;
+  background: white;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.custom-tabs .nav-link {
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  color: #6b7280;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.custom-tabs .nav-link:hover {
+  background: #f3f4f6;
+  color: #1e3a8a;
+}
+
+.custom-tabs .nav-link.active {
+  background: #1e3a8a;
+  color: white;
+}
+// Add these styles to your existing SCSS file
+
+.vehicle-footer {
+  display: flex;
+  gap: 8px;
+  padding: 15px;
+  
+  .btn-sm {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    white-space: nowrap;
+    
+    i {
+      font-size: 0.9rem;
+    }
+  }
+  
+  // Make buttons stack on very small screens
+  @media (max-width: 400px) {
+    flex-direction: column;
+    
+    .btn-sm {
+      width: 100%;
+    }
+  }
+}
+
+// Modal styles
+.modal {
+  &.show {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+}
+
+.modal-backdrop {
+  &.show {
+    opacity: 0.5;
+  }
+}
+
+// Selected vehicle info in modal
+.selected-vehicle-info {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  
+  h6 {
+    margin: 0;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  small {
+    color: #6c757d;
+  }
+}
+
+// Form labels
+.form-label {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+  
+  .text-danger {
+    color: #dc3545;
+  }
+}
+
+// Disabled input styling
+.form-control:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
+.vehicle-card {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: all 0.3s;
+}
+
+.vehicle-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.vehicle-header {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.vacant-card .vehicle-header {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.busy-card .vehicle-header {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.vehicle-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  background: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 28px;
+}
+
+.vehicle-icon.busy {
+  background: #f59e0b;
+}
+
+.vehicle-body {
+  padding: 20px;
+}
+
+.vehicle-body h4 {
+  color: #1e3a8a;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.vehicle-details {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.detail-item i {
+  color: #9ca3af;
+  font-size: 16px;
+}
+
+.vehicle-footer {
+  padding: 15px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 15px;
+}
+
+.selected-vehicle-info {
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.selected-vehicle-info h6 {
+  margin: 0 0 5px 0;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.modal.show {
+  background: rgba(0,0,0,0.5);
+}
+// ADD THESE STYLES TO YOUR EXISTING vehicle-management.component.scss
+
+// Time slot selection grid
+.time-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  
+  @media (max-width: 576px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.time-slot-option {
+  label {
+    padding: 15px;
+    text-align: center;
+    border-width: 2px;
+    transition: all 0.3s;
+    cursor: pointer;
+    
+    i {
+      font-size: 24px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    
+    span {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    small {
+      font-size: 11px;
+      display: block;
+    }
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+  }
+  
+  input:checked + label {
+    border-width: 2px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    transform: scale(1.05);
+  }
+}
+
+// Testing mode alert
+.alert-info {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  
+  i {
+    color: #1e40af;
+  }
+}
+
+// Timer display in busy vehicle cards
+.timer-display {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  i {
+    font-size: 20px;
+    color: #d97706;
+    animation: pulse 2s infinite;
+  }
+  
+  .time-remaining {
+    font-size: 18px;
+    font-weight: 700;
+    color: #92400e;
+  }
+  
+  &.expired {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    
+    i {
+      color: #dc2626;
+    }
+    
+    .time-remaining {
+      color: #991b1b;
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+// Enhanced detail item for timer
+.detail-item {
+  &.timer-item {
+    background: #fef3c7;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    
+    i {
+      color: #d97706;
+      animation: pulse 2s infinite;
+    }
+    
+    span {
+      color: #92400e;
+    }
+  }
+}
+
+// Notification style buttons
+.btn-primary, .btn-danger, .btn-info {
+  transition: all 0.3s;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+}
+
+// Auto-release notification style
+.notification-badge {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.5s ease-out;
+  z-index: 9999;
+  
+  i {
+    font-size: 24px;
+    margin-right: 12px;
+  }
+  
+  &.error {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+// Update existing busy vehicle card
+.busy-card {
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    animation: progressBar 1s ease-in-out infinite;
+  }
+}
+
+@keyframes progressBar {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}

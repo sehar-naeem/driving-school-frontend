@@ -1,0 +1,18 @@
+<div class="app-container" *ngIf="showLayout">
+
+  <app-sidebar 
+    [isCollapsed]="sidebarCollapsed"
+    (collapseChange)="onSidebarCollapseChange($event)">
+  </app-sidebar>
+
+  <div class="main-content" [class.collapsed]="sidebarCollapsed">
+    <app-navbar (toggleSidebar)="toggleSidebar()"></app-navbar>
+
+    <div class="content-wrapper">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+
+</div>
+
+<router-outlet *ngIf="!showLayout"></router-outlet>

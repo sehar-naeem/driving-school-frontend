@@ -1,0 +1,138 @@
+<div class="instructor-dashboard">
+  <!-- Welcome Header -->
+  <div class="welcome-section">
+    <div class="welcome-content">
+      <h1 class="welcome-title">
+        Welcome back, {{ currentUser?.full_name }}! 👋
+      </h1>
+      <p class="welcome-subtitle">Here's your schedule and status for today</p>
+    </div>
+    <div class="quick-actions">
+      <button class="quick-action-btn" routerLink="/instructor/file-complaint">
+        <i class="bi bi-plus-circle"></i>
+        <span>File Complaint</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Cards -->
+  <div class="status-cards">
+    <div class="status-card" [class.active]="stats.currentlyAllocated">
+      <div class="status-card-icon">
+        <i class="bi bi-car-front-fill"></i>
+      </div>
+      <div class="status-card-content">
+        <h3>{{ stats.currentlyAllocated ? '1' : '0' }}</h3>
+        <p>Vehicle Allocated</p>
+      </div>
+      <div class="status-indicator" [class.active]="stats.currentlyAllocated"></div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-icon warning">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+      </div>
+      <div class="status-card-content">
+        <h3>{{ stats.pendingComplaints }}</h3>
+        <p>Pending Issues</p>
+      </div>
+    </div>
+
+    <div class="status-card">
+      <div class="status-card-icon success">
+        <i class="bi bi-check-circle-fill"></i>
+      </div>
+      <div class="status-card-content">
+        <h3>{{ stats.resolvedComplaints }}</h3>
+        <p>Resolved</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Current Allocation -->
+  <div class="allocation-section" *ngIf="currentVehicle">
+    <div class="section-header">
+      <h2>
+        <i class="bi bi-car-front"></i>
+        Current Allocation
+      </h2>
+    </div>
+    <div class="allocation-card">
+      <div class="vehicle-visual">
+        <div class="vehicle-icon-large">
+          <i class="bi bi-car-front-fill"></i>
+        </div>
+        <div class="pulse-ring"></div>
+      </div>
+      <div class="allocation-details">
+        <h3>{{ currentVehicle.model }}</h3>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Registration</span>
+            <span class="detail-value">{{ currentVehicle.registration_number }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Session Duration</span>
+            <span class="detail-value">{{ currentVehicle.time_slot }} minutes</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Time Remaining</span>
+            <span class="detail-value time-remaining">{{ getRemainingTime() }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Status</span>
+            <span class="badge-active">Active Session</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Allocation -->
+  <div class="no-allocation" *ngIf="!currentVehicle">
+    <div class="empty-illustration">
+      <i class="bi bi-info-circle"></i>
+    </div>
+    <h3>No Vehicle Allocated</h3>
+    <p>You don't have any vehicle allocation at the moment. Please contact admin for today's schedule.</p>
+  </div>
+
+  <!-- Recent Complaints -->
+  <div class="complaints-section">
+    <div class="section-header">
+      <h2>
+        <i class="bi bi-chat-dots"></i>
+        Recent Complaints
+      </h2>
+      <a routerLink="/instructor/my-complaints" class="view-all-link">
+        View All <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+    <div class="complaints-timeline">
+      <div *ngFor="let complaint of myComplaints" class="timeline-item">
+        <div class="timeline-marker" [class.pending]="complaint.status === 'pending'"
+             [class.resolved]="complaint.status === 'resolved'"></div>
+        <div class="timeline-content">
+          <div class="complaint-header">
+            <h4>{{ complaint.title }}</h4>
+            <span class="complaint-status" [ngClass]="'status-' + complaint.status">
+              {{ complaint.status }}
+            </span>
+          </div>
+          <p class="complaint-vehicle">
+            <i class="bi bi-car-front"></i>
+            {{ complaint.vehicle?.registration_number }}
+          </p>
+          <p class="complaint-date">
+            <i class="bi bi-calendar"></i>
+            {{ complaint.created_at | date:'MMM d, y' }}
+          </p>
+        </div>
+      </div>
+      <div *ngIf="myComplaints.length === 0" class="empty-timeline">
+        <i class="bi bi-check-circle"></i>
+        <p>No complaints filed. All systems running smoothly!</p>
+      </div>
+    </div>
+  </div>
+</div>

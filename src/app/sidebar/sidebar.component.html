@@ -1,0 +1,95 @@
+<aside class="sidebar-modern" [class.collapsed]="isCollapsed">
+  
+  <!-- Toggle Button - Now more visible -->
+  <button 
+    class="sidebar-toggle-btn" 
+    (click)="toggleCollapse()" 
+    [title]="isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'"
+    type="button">
+    <i class="bi" [class.bi-chevron-left]="!isCollapsed" [class.bi-chevron-right]="isCollapsed"></i>
+  </button>
+
+  <!-- Logo Section -->
+  <div class="sidebar-logo">
+    <div class="logo-wrapper">
+      <div class="logo-icon-modern">
+        <i class="bi bi-car-front-fill"></i>
+      </div>
+      <div class="logo-text" *ngIf="!isCollapsed">
+        <h3 class="logo-title">Driving School</h3>
+        <p class="logo-subtitle">Management</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Profile Card -->
+  <div class="user-profile-card" *ngIf="currentUser && !isCollapsed">
+    <div class="user-avatar">
+      <div class="avatar-circle">
+        {{ currentUser.full_name.charAt(0) }}
+      </div>
+      <div class="status-indicator"></div>
+    </div>
+    <div class="user-info">
+      <h4 class="user-name">{{ currentUser.full_name }}</h4>
+      <span
+        class="user-role"
+        [class.role-admin]="isAdmin"
+        [class.role-instructor]="!isAdmin">
+        <i
+          class="bi"
+          [class.bi-shield-fill-check]="isAdmin"
+          [class.bi-person-badge]="!isAdmin"></i>
+        {{ currentUser.role | titlecase }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Collapsed User Avatar -->
+  <div class="user-avatar-collapsed" *ngIf="currentUser && isCollapsed">
+    <div class="avatar-circle-small">
+      {{ currentUser.full_name.charAt(0) }}
+    </div>
+  </div>
+
+  <!-- Navigation Menu -->
+  <nav class="sidebar-navigation">
+    <div class="nav-section">
+
+      <a
+        *ngFor="let item of menuItems"
+        [routerLink]="item.route"
+        routerLinkActive="active"
+        class="nav-item-modern"
+        [title]="isCollapsed ? item.label : ''">
+
+        <div class="nav-item-content">
+          <i class="bi nav-icon" [ngClass]="item.icon"></i>
+          <span class="nav-label" *ngIf="!isCollapsed">{{ item.label }}</span>
+          <span
+            class="notification-badge"
+            *ngIf="item.badge && !isCollapsed">
+            {{ item.badge }}
+          </span>
+        </div>
+
+        <div class="nav-indicator"></div>
+      </a>
+
+    </div>
+  </nav>
+
+  <!-- Sidebar Footer -->
+  <div class="sidebar-footer">
+    <button
+      class="nav-item-modern logout-btn"
+      (click)="logout()"
+      type="button"
+      [title]="isCollapsed ? 'Logout' : ''">
+      <div class="nav-item-content">
+        <i class="bi bi-box-arrow-right nav-icon"></i>
+        <span class="nav-label" *ngIf="!isCollapsed">Logout</span>
+      </div>
+    </button>
+  </div>
+</aside>

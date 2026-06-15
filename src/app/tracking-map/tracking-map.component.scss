@@ -1,0 +1,116 @@
+.tracking-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.page-header {
+  padding: 20px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  
+  h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+  }
+  
+  p {
+    margin: 5px 0 0 0;
+  }
+}
+
+.tracking-content {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 180px); // Adjust based on your header height
+  overflow: hidden;
+}
+
+.map-wrapper {
+  flex: 1;
+  position: relative;
+  
+  #map {
+    width: 100%;
+    height: 100%; // CRITICAL: Map needs explicit height
+    min-height: 500px; // Minimum height
+  }
+}
+
+.vehicle-sidebar {
+  width: 320px;
+  background: white;
+  border-left: 1px solid #e0e0e0;
+  overflow-y: auto;
+  
+  .sidebar-title {
+    padding: 20px;
+    margin: 0;
+    border-bottom: 1px solid #e0e0e0;
+    font-weight: 600;
+  }
+  
+  .vehicle-list {
+    padding: 10px;
+  }
+  
+  .vehicle-list-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #28a745;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &:hover {
+      transform: translateX(5px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    &.busy {
+      border-left-color: #ffc107;
+    }
+    
+    &.vacant {
+      border-left-color: #28a745;
+    }
+    
+    .vehicle-icon {
+      font-size: 24px;
+      margin-right: 12px;
+      color: #6c757d;
+    }
+    
+    .vehicle-info {
+      flex: 1;
+      
+      h6 {
+        margin: 0 0 5px 0;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      
+      small {
+        color: #6c757d;
+        font-size: 12px;
+      }
+      
+      .badge {
+        font-size: 11px;
+        padding: 3px 8px;
+      }
+    }
+    
+    .vehicle-location {
+      small {
+        font-size: 10px;
+        color: #999;
+      }
+    }
+  }
+}

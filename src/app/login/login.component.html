@@ -1,0 +1,92 @@
+<div class="login-wrapper">
+  <!-- Animated Background -->
+  <div class="login-background">
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
+  </div>
+
+  <!-- Login Card -->
+  <div class="login-container">
+    <div class="login-card">
+      <!-- Logo Section -->
+      <div class="login-header">
+        <div class="logo-container">
+          <div class="logo-icon">
+            <i class="bi bi-car-front-fill"></i>
+          </div>
+        </div>
+        <h1 class="login-title">Driving School</h1>
+        <p class="login-subtitle">Management System</p>
+      </div>
+
+      <!-- Login Form -->
+      <form (ngSubmit)="onSubmit()" class="login-form">
+        <!-- Error Alert -->
+        <div class="alert-modern alert-danger" *ngIf="error">
+          <i class="bi bi-exclamation-triangle"></i>
+          <span>{{ error }}</span>
+        </div>
+
+        <!-- Username Field -->
+        <div class="form-group-modern">
+          <label class="form-label-modern">Username</label>
+          <div class="input-wrapper">
+            <i class="bi bi-person input-icon"></i>
+            <input
+              type="text"
+              class="form-input-modern"
+              placeholder="Enter your username"
+              [(ngModel)]="credentials.username"
+              name="username"
+              required
+              autocomplete="username">
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="form-group-modern">
+          <label class="form-label-modern">Password</label>
+          <div class="input-wrapper">
+            <i class="bi bi-lock input-icon"></i>
+            <input
+              [type]="showPassword ? 'text' : 'password'"
+              class="form-input-modern"
+              placeholder="Enter your password"
+              [(ngModel)]="credentials.password"
+              name="password"
+              required
+              autocomplete="current-password">
+            <button
+              type="button"
+              class="password-toggle"
+              (click)="showPassword = !showPassword"
+              tabindex="-1">
+              <i class="bi" [class.bi-eye]="!showPassword" [class.bi-eye-slash]="showPassword"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          class="btn-login"
+          [disabled]="loading || !credentials.username || !credentials.password">
+          <span class="btn-content" *ngIf="!loading">
+            <span>Sign In</span>
+            <i class="bi bi-arrow-right"></i>
+          </span>
+          <span class="btn-content" *ngIf="loading">
+            <span class="spinner"></span>
+            <span>Signing in...</span>
+          </span>
+        </button>
+      </form>
+
+      <!-- Footer -->
+      <div class="login-footer">
+        <p>© 2025 Driving School System. All rights reserved.</p>
+      </div>
+    </div>
+  </div>
+</div>

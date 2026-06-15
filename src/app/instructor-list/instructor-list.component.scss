@@ -1,0 +1,145 @@
+.instructor-list-container {
+  padding: 30px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.search-bar {
+  max-width: 600px;
+}
+
+.search-bar .input-group-text {
+  background: white;
+  border-right: none;
+}
+
+.search-bar .form-control {
+  border-left: none;
+}
+
+.search-bar .form-control:focus {
+  box-shadow: none;
+  border-color: #ced4da;
+}
+.modal {
+  &.show {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+}
+
+.modal-backdrop {
+  &.show {
+    opacity: 0.5;
+  }
+}
+
+// Update instructor-footer to accommodate 3 buttons
+.instructor-footer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  
+  .btn-sm {
+    flex: 1;
+    min-width: 80px;
+    font-size: 0.8rem;
+  }
+}
+
+// Optional: Make form labels bold
+.modal-body {
+  .form-label {
+    font-weight: 500;
+    color: #333;
+  }
+  
+  .text-danger {
+    color: #dc3545;
+  }
+}
+
+.instructor-card {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: all 0.3s;
+}
+
+.instructor-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.instructor-header {
+  padding: 25px 20px 15px;
+  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.instructor-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 36px;
+  box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+}
+
+.instructor-body {
+  padding: 20px;
+}
+
+.instructor-body h5 {
+  color: #1e3a8a;
+  font-weight: 700;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.instructor-details {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.detail-item i {
+  color: #9ca3af;
+  font-size: 16px;
+  min-width: 20px;
+}
+
+.instructor-footer {
+  padding: 15px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 15px;
+}

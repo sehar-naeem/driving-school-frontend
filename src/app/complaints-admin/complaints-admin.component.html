@@ -1,0 +1,148 @@
+<div class="complaints-container">
+  <div class="page-header">
+    <h2><i class="bi bi-exclamation-triangle me-2"></i>Complaints Management</h2>
+    <p class="text-muted">Review and respond to vehicle complaints</p>
+  </div>
+
+  <!-- Filter Tabs -->
+  <ul class="nav nav-pills custom-pills mb-4">
+    <li class="nav-item">
+      <button class="nav-link" [class.active]="filterStatus === 'all'" (click)="filterStatus = 'all'; applyFilter()">
+        All <span class="badge bg-light text-dark ms-2">{{ complaints.length }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" [class.active]="filterStatus === 'pending'" (click)="filterStatus = 'pending'; applyFilter()">
+        Pending <span class="badge bg-warning text-dark ms-2">{{ getFilteredCount('pending') }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" [class.active]="filterStatus === 'in_progress'" (click)="filterStatus = 'in_progress'; applyFilter()">
+        In Progress <span class="badge bg-info ms-2">{{ getFilteredCount('in_progress') }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" [class.active]="filterStatus === 'resolved'" (click)="filterStatus = 'resolved'; applyFilter()">
+        Resolved <span class="badge bg-success ms-2">{{ getFilteredCount('resolved') }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <!-- Complaints Grid -->
+  <div class="row g-4">
+    <div *ngFor="let complaint of filteredComplaints" class="col-lg-6">
+      <div class="complaint-card">
+        <div class="complaint-header">
+          <div>
+            <span class="badge" [ngClass]="getPriorityClass(complaint.priority)">
+              {{ complaint.priority | uppercase }}
+            </span>
+            <span class="badge ms-2" [ngClass]="getStatusClass(complaint.status)">
+              {{ complaint.status | uppercase }}
+            </span>
+          </div>
+          <small class="text-muted">
+            <i class="bi bi-calendar me-1"></i>{{ complaint.created_at | date:'MMM d, y h:mm a' }}
+          </small>
+        </div>
+
+        <div class="complaint-body">
+          <h5>{{ complaint.title || complaint.issue_type }}</h5>
+          <p>{{ complaint.description }}</p>
+
+          <div class="complaint-info">
+            <div class="info-item">
+              <i class="bi bi-car-front"></i>
+              <span>{{ complaint.vehicle?.registration_number }} - {{ complaint.vehicle?.model }}</span>
+            </div>
+            <div class="info-item">
+              <i class="bi bi-person"></i>
+              <span>{{ complaint.instructor?.full_name }}</span>
+            </div>
+          </div>
+
+          <div *ngIf="complaint.admin_response" class="admin-response">
+            <strong>Admin Response:</strong>
+            <p>{{ complaint.admin_response }}</p>
+          </div>
+        </div>
+
+        <div class="complaint-footer">
+          <button class="btn btn-sm btn-primary" (click)="openResponseModal(complaint)">
+            <i class="bi bi-chat-dots me-1"></i>Respond
+          </button>
+          <button class="btn btn-sm btn-danger" (click)="deleteComplaint(complaint.id)">
+            <i class="bi bi-trash me-1"></i>Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="filteredComplaints.length === 0" class="col-12">
+      <div class="empty-state">
+        <i class="bi bi-inbox display-1 text-muted"></i>
+        <h5 class="mt-3">No Complaints Found</h5>
+        <p class="text-muted">There are no complaints matching your filter</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Response Modal -->
+  <div class="modal fade" [class.show]="showResponseModal" [style.display]="showResponseModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-chat-dots me-2"></i>Respond to Complaint
+          </h5>
+          <button type="button" class="btn-close" (click)="closeResponseModal()"></button>
+        </div>
+        <div class="modal-body" *ngIf="selectedComplaint">
+          <div class="complaint-details">
+            <h6>{{ selectedComplaint.title || selectedComplaint.issue_type }}</h6>
+            <p>{{ selectedComplaint.description }}</p>
+            <div class="d-flex gap-3 mb-3">
+              <span class="badge" [ngClass]="getPriorityClass(selectedComplaint.priority)">
+                {{ selectedComplaint.priority }}
+              </span>
+              <span class="badge" [ngClass]="getStatusClass(selectedComplaint.status)">
+                {{ selectedComplaint.status }}
+              </span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Admin Response</label>
+            <textarea 
+              class="form-control" 
+              rows="4"
+              [(ngModel)]="adminResponse"
+              placeholder="Enter your response..."></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Update Status</label>
+            <div class="btn-group w-100" role="group">
+              <button type="button" class="btn btn-outline-warning" (click)="updateComplaintStatus('pending')">
+                Pending
+              </button>
+              <button type="button" class="btn btn-outline-info" (click)="updateComplaintStatus('in_progress')">
+                In Progress
+              </button>
+              <button type="button" class="btn btn-outline-success" (click)="updateComplaintStatus('resolved')">
+                Resolved
+              </button>
+              <button type="button" class="btn btn-outline-secondary" (click)="updateComplaintStatus('closed')">
+                Closed
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeResponseModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade" [class.show]="showResponseModal" *ngIf="showResponseModal"></div>
+</div>

@@ -1,0 +1,477 @@
+<div class="vehicle-management-container">
+  <div class="page-header">
+    <div>
+      <h2><i class="bi bi-car-front me-2"></i>Vehicle Management</h2>
+      <p class="text-muted">Manage and allocate vehicles to instructors</p>
+    </div>
+    <button class="btn btn-primary" (click)="openRegisterModal()">
+      <i class="bi bi-plus-circle me-2"></i>Register New Vehicle
+    </button>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs custom-tabs mb-4">
+    <li class="nav-item">
+      <button 
+        class="nav-link" 
+        [class.active]="activeTab === 'vacant'"
+        (click)="activeTab = 'vacant'">
+        <i class="bi bi-check-circle me-2"></i>
+        Vacant Vehicles
+        <span class="badge bg-success ms-2">{{ vacantVehicles.length }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button 
+        class="nav-link" 
+        [class.active]="activeTab === 'busy'"
+        (click)="activeTab = 'busy'">
+        <i class="bi bi-clock me-2"></i>
+        Busy Vehicles
+        <span class="badge bg-warning ms-2">{{ busyVehicles.length }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <!-- Vacant Vehicles Tab -->
+  <div *ngIf="activeTab === 'vacant'" class="vehicles-grid">
+    <div class="row g-4">
+      <div *ngFor="let vehicle of vacantVehicles" class="col-lg-4 col-md-6">
+        <div class="vehicle-card vacant-card">
+          <div class="vehicle-header">
+            <div class="vehicle-icon">
+              <i class="bi bi-car-front-fill"></i>
+            </div>
+            <span class="badge bg-success">Available</span>
+          </div>
+          
+          <div class="vehicle-body">
+            <h4>{{ vehicle.model }}</h4>
+            <div class="vehicle-details">
+              <div class="detail-item">
+                <i class="bi bi-hash"></i>
+                <span>{{ vehicle.registration_number }}</span>
+              </div>
+              <div class="detail-item">
+                <i class="bi bi-building"></i>
+                <span>{{ vehicle.manufacturer }}</span>
+              </div>
+              <div class="detail-item">
+                <i class="bi bi-calendar"></i>
+                <span>{{ vehicle.year }}</span>
+              </div>
+              <div class="detail-item">
+                <i class="bi bi-palette"></i>
+                <span>{{ vehicle.color }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="vehicle-footer">
+            <button class="btn btn-sm btn-info text-white" (click)="openEditModal(vehicle)">
+              <i class="bi bi-pencil"></i> Edit
+            </button>
+            <button class="btn btn-sm btn-primary" (click)="openAllocateModal(vehicle)">
+              <i class="bi bi-person-plus"></i> Allocate
+            </button>
+            <button class="btn btn-sm btn-danger" (click)="deleteVehicle(vehicle)">
+              <i class="bi bi-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="vacantVehicles.length === 0" class="col-12">
+        <div class="empty-state">
+          <i class="bi bi-inbox display-1 text-muted"></i>
+          <h5 class="mt-3">No Vacant Vehicles</h5>
+          <p class="text-muted">All vehicles are currently allocated or in maintenance</p>
+          <button class="btn btn-primary mt-3" (click)="openRegisterModal()">
+            <i class="bi bi-plus-circle me-2"></i>Register First Vehicle
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Busy Vehicles Tab -->
+  <div *ngIf="activeTab === 'busy'" class="vehicles-grid">
+    <div class="row g-4">
+      <div *ngFor="let vehicle of busyVehicles" class="col-lg-4 col-md-6">
+        <div class="vehicle-card busy-card">
+          <div class="vehicle-header">
+            <div class="vehicle-icon busy">
+              <i class="bi bi-car-front-fill"></i>
+            </div>
+            <span class="badge bg-warning">In Use</span>
+          </div>
+          
+          <div class="vehicle-body">
+            <h4>{{ vehicle.model }}</h4>
+            <div class="vehicle-details">
+              <div class="detail-item">
+                <i class="bi bi-hash"></i>
+                <span>{{ vehicle.registration_number }}</span>
+              </div>
+              <div class="detail-item">
+                <i class="bi bi-person-fill"></i>
+                <span>{{ vehicle.current_instructor?.full_name || 'Unknown' }}</span>
+              </div>
+              <div class="detail-item">
+                <i class="bi bi-clock-fill"></i>
+                <span>{{ vehicle.time_slot }} minutes</span>
+              </div>
+              <div class="detail-item">
+                <i class="bi bi-hourglass-split"></i>
+                <span>{{ getRemainingTime(vehicle) }} remaining</span>
+              </div>
+              <div class="detail-item">
+                <i class="bi bi-geo-alt-fill"></i>
+                <span>Lat: {{ vehicle.latitude | number:'1.4-4' }}, Lng: {{ vehicle.longitude | number:'1.4-4' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="vehicle-footer">
+            <button class="btn btn-danger w-100" (click)="releaseVehicle(vehicle._id)">
+              <i class="bi bi-x-circle me-2"></i>Release Vehicle
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="busyVehicles.length === 0" class="col-12">
+        <div class="empty-state">
+          <i class="bi bi-inbox display-1 text-muted"></i>
+          <h5 class="mt-3">No Busy Vehicles</h5>
+          <p class="text-muted">No vehicles are currently in use</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Vehicle Modal -->
+  <div class="modal fade" [class.show]="showRegisterModal" [style.display]="showRegisterModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-car-front me-2"></i>Register New Vehicle
+          </h5>
+          <button type="button" class="btn-close" (click)="closeRegisterModal()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger" *ngIf="registerError">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ registerError }}
+          </div>
+
+          <form>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Registration Number <span class="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  placeholder="ABC-123"
+                  [(ngModel)]="registerFormData.registration_number"
+                  name="registration_number"
+                  required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Model <span class="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  placeholder="Corolla, Civic, etc."
+                  [(ngModel)]="registerFormData.model"
+                  name="model"
+                  required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Manufacturer <span class="text-danger">*</span></label>
+                <select class="form-select" [(ngModel)]="registerFormData.manufacturer" name="manufacturer" required>
+                  <option value="">Select Manufacturer</option>
+                  <option value="Toyota">Toyota</option>
+                  <option value="Honda">Honda</option>
+                  <option value="Suzuki">Suzuki</option>
+                  <option value="Nissan">Nissan</option>
+                  <option value="Hyundai">Hyundai</option>
+                  <option value="Kia">Kia</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Year <span class="text-danger">*</span></label>
+                <input 
+                  type="number" 
+                  class="form-control" 
+                  min="2000"
+                  max="2030"
+                  [(ngModel)]="registerFormData.year"
+                  name="year"
+                  required>
+              </div>
+
+              <div class="col-md-12">
+                <label class="form-label">Color <span class="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  placeholder="White, Black, Silver, etc."
+                  [(ngModel)]="registerFormData.color"
+                  name="color"
+                  required>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeRegisterModal()">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" 
+                  [disabled]="registerLoading"
+                  (click)="registerVehicle()">
+            <span *ngIf="!registerLoading">
+              <i class="bi bi-check-circle me-2"></i>Register Vehicle
+            </span>
+            <span *ngIf="registerLoading">
+              <span class="spinner-border spinner-border-sm me-2"></span>
+              Registering...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Vehicle Modal -->
+  <div class="modal fade" [class.show]="showEditModal" [style.display]="showEditModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-pencil-square me-2"></i>Edit Vehicle
+          </h5>
+          <button type="button" class="btn-close" (click)="closeEditModal()"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger" *ngIf="editError">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ editError }}
+          </div>
+
+          <form>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Registration Number <span class="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  [(ngModel)]="editFormData.registration_number"
+                  name="registration_number"
+                  disabled>
+                <small class="text-muted">Registration number cannot be changed</small>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Model <span class="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  placeholder="Corolla, Civic, etc."
+                  [(ngModel)]="editFormData.model"
+                  name="model"
+                  required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Manufacturer <span class="text-danger">*</span></label>
+                <select class="form-select" [(ngModel)]="editFormData.manufacturer" name="manufacturer" required>
+                  <option value="">Select Manufacturer</option>
+                  <option value="Toyota">Toyota</option>
+                  <option value="Honda">Honda</option>
+                  <option value="Suzuki">Suzuki</option>
+                  <option value="Nissan">Nissan</option>
+                  <option value="Hyundai">Hyundai</option>
+                  <option value="Kia">Kia</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Year <span class="text-danger">*</span></label>
+                <input 
+                  type="number" 
+                  class="form-control" 
+                  min="2000"
+                  max="2030"
+                  [(ngModel)]="editFormData.year"
+                  name="year"
+                  required>
+              </div>
+
+              <div class="col-md-12">
+                <label class="form-label">Color <span class="text-danger">*</span></label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  placeholder="White, Black, Silver, etc."
+                  [(ngModel)]="editFormData.color"
+                  name="color"
+                  required>
+              </div>
+
+              <div class="col-md-12">
+                <label class="form-label">Status</label>
+                <select class="form-select" [(ngModel)]="editFormData.status" name="status">
+                  <option value="vacant">Vacant</option>
+                  <option value="busy">Busy</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeEditModal()">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" 
+                  [disabled]="editLoading"
+                  (click)="updateVehicle()">
+            <span *ngIf="!editLoading">
+              <i class="bi bi-check-circle me-2"></i>Save Changes
+            </span>
+            <span *ngIf="editLoading">
+              <span class="spinner-border spinner-border-sm me-2"></span>
+              Updating...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Allocate Modal -->
+  <!-- Allocate Modal - REPLACE YOUR EXISTING ALLOCATE MODAL WITH THIS -->
+  <div class="modal fade" [class.show]="showAllocateModal" [style.display]="showAllocateModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-car-front me-2"></i>Allocate Vehicle
+          </h5>
+          <button type="button" class="btn-close" (click)="closeAllocateModal()"></button>
+        </div>
+        <div class="modal-body" *ngIf="selectedVehicle">
+          <div class="selected-vehicle-info">
+            <h6>{{ selectedVehicle.model }}</h6>
+            <small class="text-muted">{{ selectedVehicle.registration_number }}</small>
+          </div>
+
+          <form>
+            <div class="mb-3">
+              <label class="form-label">Select Instructor <span class="text-danger">*</span></label>
+              <select class="form-select" [(ngModel)]="allocationData.instructor_id" name="instructor">
+                <option [value]="null">Choose an instructor...</option>
+                <option *ngFor="let instructor of instructors" [value]="instructor._id">
+                  {{ instructor.full_name }} ({{ instructor.email }})
+                </option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Time Slot <span class="text-danger">*</span></label>
+              <div class="time-slot-grid">
+                <!-- 1 MINUTE FOR TESTING -->
+                <div class="time-slot-option">
+                  <input 
+                    type="radio" 
+                    class="btn-check" 
+                    name="timeSlot" 
+                    id="time1" 
+                    [value]="1" 
+                    [(ngModel)]="allocationData.time_slot">
+                  <label class="btn btn-outline-danger w-100" for="time1">
+                    <i class="bi bi-lightning-fill"></i>
+                    <span class="d-block">1 min</span>
+                    <small class="text-muted">Testing</small>
+                  </label>
+                </div>
+
+                <!-- 35 MINUTES -->
+                <div class="time-slot-option">
+                  <input 
+                    type="radio" 
+                    class="btn-check" 
+                    name="timeSlot" 
+                    id="time35" 
+                    [value]="35" 
+                    [(ngModel)]="allocationData.time_slot">
+                  <label class="btn btn-outline-primary w-100" for="time35">
+                    <i class="bi bi-clock-fill"></i>
+                    <span class="d-block">35 min</span>
+                    <small class="text-muted">Short</small>
+                  </label>
+                </div>
+
+                <!-- 65 MINUTES -->
+                <div class="time-slot-option">
+                  <input 
+                    type="radio" 
+                    class="btn-check" 
+                    name="timeSlot" 
+                    id="time65" 
+                    [value]="65" 
+                    [(ngModel)]="allocationData.time_slot">
+                  <label class="btn btn-outline-primary w-100" for="time65">
+                    <i class="bi bi-clock-fill"></i>
+                    <span class="d-block">65 min</span>
+                    <small class="text-muted">Standard</small>
+                  </label>
+                </div>
+
+                <!-- 125 MINUTES -->
+                <div class="time-slot-option">
+                  <input 
+                    type="radio" 
+                    class="btn-check" 
+                    name="timeSlot" 
+                    id="time125" 
+                    [value]="125" 
+                    [(ngModel)]="allocationData.time_slot">
+                  <label class="btn btn-outline-primary w-100" for="time125">
+                    <i class="bi bi-clock-fill"></i>
+                    <span class="d-block">125 min</span>
+                    <small class="text-muted">Extended</small>
+                  </label>
+                </div>
+              </div>
+              
+              <div class="alert alert-info mt-3" *ngIf="allocationData.time_slot === 1">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Testing Mode:</strong> Vehicle will be released after 1 minute for testing purposes.
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeAllocateModal()">Cancel</button>
+          <button 
+            type="button" 
+            class="btn btn-primary" 
+            [disabled]="!allocationData.instructor_id"
+            (click)="allocateVehicle()">
+            <i class="bi bi-check-circle me-2"></i>Allocate Vehicle
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal Backdrop -->
+  <div class="modal-backdrop fade" [class.show]="showAllocateModal || showRegisterModal || showEditModal" 
+       *ngIf="showAllocateModal || showRegisterModal || showEditModal"></div>
+</div>

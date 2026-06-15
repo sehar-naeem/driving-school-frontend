@@ -1,0 +1,90 @@
+<div class="register-container">
+  <div class="page-header">
+    <h2><i class="bi bi-car-front me-2"></i>Register New Vehicle</h2>
+    <p class="text-muted">Add a new vehicle to the fleet</p>
+  </div>
+
+  <div class="register-card">
+    <form (ngSubmit)="onSubmit()">
+      <div class="alert alert-danger" *ngIf="error">
+        <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Registration Number <span class="text-danger">*</span></label>
+          <input 
+            type="text" 
+            class="form-control" 
+            placeholder="ABC-123"
+            [(ngModel)]="formData.registration_number"
+            name="registration_number"
+            required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Model <span class="text-danger">*</span></label>
+          <input 
+            type="text" 
+            class="form-control" 
+            placeholder="Corolla, Civic, etc."
+            [(ngModel)]="formData.model"
+            name="model"
+            required>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Manufacturer <span class="text-danger">*</span></label>
+          <select class="form-select" [(ngModel)]="formData.manufacturer" name="manufacturer" required>
+            <option value="">Select Manufacturer</option>
+            <option value="Toyota">Toyota</option>
+            <option value="Honda">Honda</option>
+            <option value="Suzuki">Suzuki</option>
+            <option value="Nissan">Nissan</option>
+            <option value="Hyundai">Hyundai</option>
+            <option value="Kia">Kia</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Year <span class="text-danger">*</span></label>
+          <input 
+            type="number" 
+            class="form-control" 
+            min="2000"
+            max="2030"
+            [(ngModel)]="formData.year"
+            name="year"
+            required>
+        </div>
+
+        <div class="col-md-12">
+          <label class="form-label">Color <span class="text-danger">*</span></label>
+          <input 
+            type="text" 
+            class="form-control" 
+            placeholder="White, Black, Silver, etc."
+            [(ngModel)]="formData.color"
+            name="color"
+            required>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" routerLink="/admin/vehicles">
+          <i class="bi bi-x-circle me-2"></i>Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          <span *ngIf="!loading">
+            <i class="bi bi-check-circle me-2"></i>Register Vehicle
+          </span>
+          <span *ngIf="loading">
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Registering...
+          </span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

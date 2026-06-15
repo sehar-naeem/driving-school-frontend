@@ -1,0 +1,91 @@
+<div class="my-complaints-container">
+  <div class="page-header-modern">
+    <div>
+      <h1>My Complaints</h1>
+      <p>Track and manage all your reported issues</p>
+    </div>
+    <button class="btn-primary-modern" routerLink="/instructor/file-complaint">
+      <i class="bi bi-plus-circle"></i>
+      File New Complaint
+    </button>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div class="filter-tabs">
+    <button class="filter-tab" [class.active]="activeFilter === 'all'" (click)="setFilter('all')">
+      All
+      <span class="tab-count">{{ getCount('all') }}</span>
+    </button>
+    <button class="filter-tab" [class.active]="activeFilter === 'pending'" (click)="setFilter('pending')">
+      Pending
+      <span class="tab-count pending">{{ getCount('pending') }}</span>
+    </button>
+    <button class="filter-tab" [class.active]="activeFilter === 'in_progress'" (click)="setFilter('in_progress')">
+      In Progress
+      <span class="tab-count progress">{{ getCount('in_progress') }}</span>
+    </button>
+    <button class="filter-tab" [class.active]="activeFilter === 'resolved'" (click)="setFilter('resolved')">
+      Resolved
+      <span class="tab-count resolved">{{ getCount('resolved') }}</span>
+    </button>
+  </div>
+
+  <!-- Complaints Grid -->
+  <div class="complaints-grid">
+    <div *ngFor="let complaint of filteredComplaints" class="complaint-card-premium">
+      <div class="complaint-card-header">
+        <div class="priority-badge" [class.urgent]="complaint.priority === 'urgent'"
+             [class.high]="complaint.priority === 'high'">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          {{ complaint.priority }}
+        </div>
+        <div class="status-badge" [ngClass]="'status-' + complaint.status">
+          {{ complaint.status | titlecase }}
+        </div>
+      </div>
+      
+      <div class="complaint-card-body">
+        <h3>{{ complaint.title }}</h3>
+        <p class="complaint-description">{{ complaint.description }}</p>
+        
+        <div class="complaint-meta-grid">
+          <div class="meta-item">
+            <i class="bi bi-car-front"></i>
+            <span>{{ complaint.vehicle?.registration_number }}</span>
+          </div>
+          <div class="meta-item">
+            <i class="bi bi-tag"></i>
+            <span>{{ complaint.issue_type | titlecase }}</span>
+          </div>
+          <div class="meta-item">
+            <i class="bi bi-calendar3"></i>
+            <span>{{ complaint.created_at | date:'MMM d, y' }}</span>
+          </div>
+        </div>
+
+        <div *ngIf="complaint.admin_response" class="admin-response-box">
+          <div class="response-header">
+            <i class="bi bi-reply-fill"></i>
+            <strong>Admin Response</strong>
+          </div>
+          <p>{{ complaint.admin_response }}</p>
+          <small *ngIf="complaint.resolved_at">
+            Resolved on {{ complaint.resolved_at | date:'MMM d, y h:mm a' }}
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="filteredComplaints.length === 0" class="empty-state-premium">
+      <div class="empty-icon">
+        <i class="bi bi-inbox"></i>
+      </div>
+      <h3>No Complaints Found</h3>
+      <p>{{ activeFilter === 'all' ? 'You haven\'t filed any complaints yet' : 'No ' + activeFilter + ' complaints' }}</p>
+      <button class="btn-primary-modern" routerLink="/instructor/file-complaint">
+        <i class="bi bi-plus-circle"></i>
+        File Your First Complaint
+      </button>
+    </div>
+  </div>
+</div>

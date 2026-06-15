@@ -1,0 +1,105 @@
+.complaints-container {
+  padding: 30px;
+}
+
+.custom-pills .nav-link {
+  border-radius: 25px;
+  padding: 10px 20px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.custom-pills .nav-link.active {
+  background: #1e3a8a;
+  color: white;
+}
+
+.complaint-card {
+  background: white;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  transition: all 0.3s;
+}
+
+.complaint-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.complaint-header {
+  padding: 15px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.complaint-body {
+  padding: 20px;
+}
+
+.complaint-body h5 {
+  color: #1e3a8a;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.complaint-info {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.info-item i {
+  color: #9ca3af;
+}
+
+.admin-response {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f0f9ff;
+  border-left: 4px solid #3b82f6;
+  border-radius: 8px;
+}
+
+.admin-response strong {
+  color: #1e40af;
+}
+
+.complaint-footer {
+  padding: 15px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 15px;
+}
+
+.complaint-details {
+  background: #f9fafb;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.modal.show {
+  background: rgba(0,0,0,0.5);
+}

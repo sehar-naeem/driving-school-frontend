@@ -1,0 +1,152 @@
+<div class="instructor-list-container">
+  <div class="page-header">
+    <div>
+      <h2><i class="bi bi-people me-2"></i>Instructors List</h2>
+      <p class="text-muted">Manage all registered instructors</p>
+    </div>
+    <a routerLink="/admin/register-instructor" class="btn btn-primary">
+      <i class="bi bi-person-plus me-2"></i>Add New Instructor
+    </a>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-bar mb-4">
+    <div class="input-group">
+      <span class="input-group-text">
+        <i class="bi bi-search"></i>
+      </span>
+      <input 
+        type="text" 
+        class="form-control" 
+        placeholder="Search by name, email or username..."
+        [(ngModel)]="searchTerm"
+        (input)="searchInstructors()">
+    </div>
+  </div>
+
+  <!-- Instructors Grid -->
+  <div class="row g-4">
+    <div *ngFor="let instructor of filteredInstructors" class="col-lg-4 col-md-6">
+      <div class="instructor-card">
+        <div class="instructor-header">
+          <div class="instructor-avatar">
+            <i class="bi bi-person-fill"></i>
+          </div>
+          <span class="badge" 
+                [class.bg-success]="instructor.status === 'active'"
+                [class.bg-secondary]="instructor.status === 'inactive'">
+            {{ instructor.status }}
+          </span>
+        </div>
+
+        <div class="instructor-body">
+          <h5>{{ instructor.full_name }}</h5>
+          <div class="instructor-details">
+            <div class="detail-item">
+              <i class="bi bi-person-badge"></i>
+              <span>{{ instructor.username }}</span>
+            </div>
+            <div class="detail-item">
+              <i class="bi bi-envelope"></i>
+              <span>{{ instructor.email }}</span>
+            </div>
+            <div class="detail-item" *ngIf="instructor.phone">
+              <i class="bi bi-telephone"></i>
+              <span>{{ instructor.phone }}</span>
+            </div>
+            <div class="detail-item">
+              <i class="bi bi-calendar"></i>
+              <span>Joined: {{ instructor.created_at | date:'MMM d, y' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="instructor-footer">
+          <!-- ✅ NEW: Edit Button -->
+          <button class="btn btn-sm btn-info text-white" (click)="openEditModal(instructor)">
+            <i class="bi bi-pencil"></i>
+            Edit
+          </button>
+          
+          <button class="btn btn-sm" 
+                  [class.btn-warning]="instructor.status === 'active'"
+                  [class.btn-success]="instructor.status === 'inactive'"
+                  (click)="toggleStatus(instructor)">
+            <i class="bi" 
+               [class.bi-pause-circle]="instructor.status === 'active'"
+               [class.bi-play-circle]="instructor.status === 'inactive'"></i>
+            {{ instructor.status === 'active' ? 'Deactivate' : 'Activate' }}
+          </button>
+          
+          <button class="btn btn-sm btn-danger" (click)="deleteInstructor(instructor)">
+            <i class="bi bi-trash"></i>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="filteredInstructors.length === 0" class="col-12">
+      <div class="empty-state">
+        <i class="bi bi-inbox display-1 text-muted"></i>
+        <h5 class="mt-3">No Instructors Found</h5>
+        <p class="text-muted">Try adjusting your search or add a new instructor</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ NEW: Edit Modal -->
+<div class="modal fade" [class.show]="showEditModal" [style.display]="showEditModal ? 'block' : 'none'" 
+     tabindex="-1" *ngIf="showEditModal">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-pencil-square me-2"></i>Edit Instructor
+        </h5>
+        <button type="button" class="btn-close" (click)="closeEditModal()"></button>
+      </div>
+      
+      <div class="modal-body">
+        <form>
+          <div class="mb-3">
+            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" [(ngModel)]="editForm.full_name" 
+                   name="full_name" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Email <span class="text-danger">*</span></label>
+            <input type="email" class="form-control" [(ngModel)]="editForm.email" 
+                   name="email" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" [(ngModel)]="editForm.username" 
+                   name="username">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <input type="tel" class="form-control" [(ngModel)]="editForm.phone" 
+                   name="phone">
+          </div>
+        </form>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeEditModal()">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" (click)="updateInstructor()">
+          <i class="bi bi-check-circle me-2"></i>Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Backdrop -->
+<div class="modal-backdrop fade" [class.show]="showEditModal" *ngIf="showEditModal"></div>

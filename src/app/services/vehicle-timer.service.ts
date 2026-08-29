@@ -1,21 +1,40 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, interval, Subscription } from 'rxjs';
+import { BehaviorSubject, Subject, interval, Subscription } from 'rxjs';
 
 export interface VehicleTimer {
-  vehicleId: number;
+  vehicleId: string;
   registrationNo: string;
+  model?: string;
+  instructorName?: string;
   busyUntil: Date;
+  timeSlotMinutes: number;
   remainingMinutes: number;
   subscription?: Subscription;
+}
+
+export interface TimerNotification {
+  vehicleId: string;
+  registrationNo: string;
+  model?: string;
+  instructorName?: string;
+  minutesRemaining: number;
+  type: 'warning_10min' | 'warning_5min' | 'expired';
+  message: string;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class VehicleTimerService {
-  private timers = new Map<number, VehicleTimer>();
+  private timers = new Map<string, VehicleTimer>();
   private timersSubject = new BehaviorSubject<VehicleTimer[]>([]);
   public timers$ = this.timersSubject.asObservable();
+
+  // Notification Streams
+  private notificationSubject = new Subject<TimerNotification>();
+  public notifications$ = this.notificationSubject.asObservable();
+
+  private warnedVehicles = new Map<string, Set<string>>(); // vehicleId -> Set of triggered alert types
 
   constructor() {
     // Check timers every second
@@ -26,78 +45,90 @@ export class VehicleTimerService {
 
   /**
    * Start timer for a busy vehicle
-   * @param vehicleId - Vehicle ID
-   * @param registrationNo - Vehicle registration number
-   * @param durationMinutes - How many minutes the vehicle will be busy
    */
-  startTimer(vehicleId: number, registrationNo: string, durationMinutes: number): void {
-    // Calculate when the vehicle should be released
+  startTimer(
+    vehicleId: string, 
+    registrationNo: string, 
+    durationMinutes: number, 
+    model: string = '', 
+    instructorName: string = ''
+  ): void {
+    const id = vehicleId.toString();
     const busyUntil = new Date();
     busyUntil.setMinutes(busyUntil.getMinutes() + durationMinutes);
 
     const timer: VehicleTimer = {
-      vehicleId,
+      vehicleId: id,
       registrationNo,
+      model,
+      instructorName,
       busyUntil,
+      timeSlotMinutes: durationMinutes,
       remainingMinutes: durationMinutes
     };
 
-    this.timers.set(vehicleId, timer);
+    this.timers.set(id, timer);
+    this.warnedVehicles.set(id, new Set<string>());
     this.emitTimers();
 
-    console.log(`✅ Timer started for vehicle ${registrationNo}: ${durationMinutes} minutes`);
-    console.log(`⏰ Will expire at: ${busyUntil.toLocaleTimeString()}`);
+    console.log(`✅ Timer started for vehicle ${registrationNo} (${id}): ${durationMinutes} mins. Expire at: ${busyUntil.toLocaleTimeString()}`);
   }
 
   /**
-   * Stop timer for a vehicle (manual release)
+   * Stop timer for a vehicle (release)
    */
-  stopTimer(vehicleId: number): void {
-    const timer = this.timers.get(vehicleId);
+  stopTimer(vehicleId: string): void {
+    const id = vehicleId.toString();
+    const timer = this.timers.get(id);
     if (timer?.subscription) {
       timer.subscription.unsubscribe();
     }
-    this.timers.delete(vehicleId);
+    this.timers.delete(id);
+    this.warnedVehicles.delete(id);
     this.emitTimers();
-    console.log(`⏹️ Timer stopped for vehicle ID: ${vehicleId}`);
+    console.log(`⏹️ Timer stopped for vehicle ID: ${id}`);
   }
 
   /**
-   * Get remaining time for a specific vehicle in minutes
+   * Get remaining seconds
    */
-  getRemainingTime(vehicleId: number): number {
-    const timer = this.timers.get(vehicleId);
+  getRemainingSeconds(vehicleId: string): number {
+    const id = vehicleId.toString();
+    const timer = this.timers.get(id);
     if (!timer) return 0;
 
     const now = new Date().getTime();
     const busy = timer.busyUntil.getTime();
     const remainingMs = busy - now;
     
-    return Math.max(0, Math.ceil(remainingMs / 60000)); // Convert to minutes
+    return Math.max(0, Math.floor(remainingMs / 1000));
+  }
+
+  /**
+   * Get remaining minutes
+   */
+  getRemainingMinutes(vehicleId: string): number {
+    const remainingSec = this.getRemainingSeconds(vehicleId);
+    return Math.ceil(remainingSec / 60);
   }
 
   /**
    * Check if vehicle timer has expired
    */
-  isTimerExpired(vehicleId: number): boolean {
-    const timer = this.timers.get(vehicleId);
+  isTimerExpired(vehicleId: string): boolean {
+    const id = vehicleId.toString();
+    const timer = this.timers.get(id);
     if (!timer) return false;
 
     return new Date().getTime() >= timer.busyUntil.getTime();
   }
 
   /**
-   * Get all active timers
+   * Format remaining time for UI
    */
-  getAllTimers(): VehicleTimer[] {
-    return Array.from(this.timers.values());
-  }
-
-  /**
-   * Format remaining time as "Xh Ym" or "Xm Ys"
-   */
-  formatRemainingTime(vehicleId: number): string {
-    const timer = this.timers.get(vehicleId);
+  formatRemainingTime(vehicleId: string): string {
+    const id = vehicleId.toString();
+    const timer = this.timers.get(id);
     if (!timer) return '0s';
 
     const now = new Date().getTime();
@@ -121,147 +152,106 @@ export class VehicleTimerService {
   }
 
   /**
-   * Update all timers and check for expired ones
+   * Update all timers and trigger warning / expiry notifications
    */
   private updateAllTimers(): void {
-    const expiredVehicles: number[] = [];
+    if (this.timers.size === 0) return;
 
-    this.timers.forEach((timer, vehicleId) => {
-      const remaining = this.getRemainingTime(vehicleId);
-      timer.remainingMinutes = remaining;
+    this.timers.forEach((timer, id) => {
+      const remainingSec = this.getRemainingSeconds(id);
+      const remainingMin = Math.ceil(remainingSec / 60);
+      timer.remainingMinutes = remainingMin;
 
-      if (remaining <= 0 && !this.isAlreadyExpired(vehicleId)) {
-        expiredVehicles.push(vehicleId);
+      const warnings = this.warnedVehicles.get(id) || new Set<string>();
+
+      // 1. Check for 10-Minute Warning (for sessions > 15 mins)
+      if (timer.timeSlotMinutes > 15 && remainingSec <= 600 && remainingSec > 300 && !warnings.has('warning_10min')) {
+        warnings.add('warning_10min');
+        this.notificationSubject.next({
+          vehicleId: id,
+          registrationNo: timer.registrationNo,
+          model: timer.model,
+          instructorName: timer.instructorName,
+          minutesRemaining: 10,
+          type: 'warning_10min',
+          message: `Vehicle ${timer.registrationNo} has 10 minutes remaining.`
+        });
       }
+
+      // 2. Check for 5-Minute Warning (or 30-sec warning for 1-minute test slots)
+      const isShortSlot = timer.timeSlotMinutes === 1;
+      const is5MinTrigger = !isShortSlot && remainingSec <= 300 && remainingSec > 0;
+      const isShortSlotTrigger = isShortSlot && remainingSec <= 30 && remainingSec > 0;
+
+      if ((is5MinTrigger || isShortSlotTrigger) && !warnings.has('warning_5min')) {
+        warnings.add('warning_5min');
+        const displayMin = isShortSlot ? 0.5 : 5;
+        this.notificationSubject.next({
+          vehicleId: id,
+          registrationNo: timer.registrationNo,
+          model: timer.model,
+          instructorName: timer.instructorName,
+          minutesRemaining: displayMin,
+          type: 'warning_5min',
+          message: `Vehicle ${timer.registrationNo} has only ${isShortSlot ? '30 seconds' : '5 minutes'} left.`
+        });
+      }
+
+      // 3. Check for Time Expired (0 remaining)
+      if (remainingSec <= 0 && !warnings.has('expired')) {
+        warnings.add('expired');
+        this.notificationSubject.next({
+          vehicleId: id,
+          registrationNo: timer.registrationNo,
+          model: timer.model,
+          instructorName: timer.instructorName,
+          minutesRemaining: 0,
+          type: 'expired',
+          message: `Session time expired for vehicle ${timer.registrationNo}.`
+        });
+      }
+
+      this.warnedVehicles.set(id, warnings);
     });
 
-    // Emit updated timers
-    if (expiredVehicles.length > 0 || this.timers.size > 0) {
-      this.emitTimers();
-    }
-
-    // Handle expired vehicles
-    if (expiredVehicles.length > 0) {
-      this.handleExpiredVehicles(expiredVehicles);
-    }
-  }
-
-  private expiredVehicles = new Set<number>();
-
-  /**
-   * Check if vehicle has already been marked as expired
-   */
-  private isAlreadyExpired(vehicleId: number): boolean {
-    return this.expiredVehicles.has(vehicleId);
-  }
-
-  /**
-   * Handle expired vehicle timers
-   */
-  private handleExpiredVehicles(vehicleIds: number[]): void {
-    vehicleIds.forEach(vehicleId => {
-      const timer = this.timers.get(vehicleId);
-      if (timer && !this.expiredVehicles.has(vehicleId)) {
-        console.log(`⏰ Timer expired for vehicle: ${timer.registrationNo}`);
-        
-        // Mark as expired to prevent multiple triggers
-        this.expiredVehicles.add(vehicleId);
-        
-        // Emit event for expired vehicle
-        this.onTimerExpired(vehicleId, timer.registrationNo);
-      }
-    });
-  }
-
-  /**
-   * Callback when timer expires
-   */
-  private onTimerExpired(vehicleId: number, registrationNo: string): void {
-    console.log(`🚗 Vehicle ${registrationNo} (ID: ${vehicleId}) timer has expired!`);
-    // The component will handle the actual release
-  }
-
-  /**
-   * Emit current timers to subscribers
-   */
-  private emitTimers(): void {
-    this.timersSubject.next(Array.from(this.timers.values()));
-  }
-
-  /**
-   * Clear all timers (useful for testing or reset)
-   */
-  clearAllTimers(): void {
-    this.timers.forEach((timer, vehicleId) => {
-      if (timer.subscription) {
-        timer.subscription.unsubscribe();
-      }
-    });
-    this.timers.clear();
-    this.expiredVehicles.clear();
     this.emitTimers();
-    console.log('🧹 All timers cleared');
   }
 
   /**
-   * Get timer info for display
+   * Extend timer by additional minutes
    */
-  getTimerInfo(vehicleId: number): { remaining: string; isExpired: boolean } {
+  extendTimer(vehicleId: string, additionalMinutes: number): boolean {
+    const id = vehicleId.toString();
+    const timer = this.timers.get(id);
+    if (!timer) return false;
+
+    const newBusyUntil = new Date(Math.max(timer.busyUntil.getTime(), new Date().getTime()));
+    newBusyUntil.setMinutes(newBusyUntil.getMinutes() + additionalMinutes);
+
+    timer.busyUntil = newBusyUntil;
+    timer.timeSlotMinutes += additionalMinutes;
+    timer.remainingMinutes = this.getRemainingMinutes(id);
+
+    // Reset warnings
+    this.warnedVehicles.set(id, new Set<string>());
+    this.emitTimers();
+    console.log(`⏰ Timer extended for ${timer.registrationNo} by ${additionalMinutes} mins`);
+    return true;
+  }
+
+  getTimerInfo(vehicleId: string): { remaining: string; isExpired: boolean } {
+    const id = vehicleId.toString();
     return {
-      remaining: this.formatRemainingTime(vehicleId),
-      isExpired: this.isTimerExpired(vehicleId)
+      remaining: this.formatRemainingTime(id),
+      isExpired: this.isTimerExpired(id)
     };
   }
 
-  /**
-   * Check if a timer exists for a vehicle
-   */
-  hasTimer(vehicleId: number): boolean {
-    return this.timers.has(vehicleId);
+  hasTimer(vehicleId: string): boolean {
+    return this.timers.has(vehicleId.toString());
   }
 
-  /**
-   * Get the expiry time for a vehicle
-   */
-  getExpiryTime(vehicleId: number): Date | null {
-    const timer = this.timers.get(vehicleId);
-    return timer ? timer.busyUntil : null;
-  }
-
-  /**
-   * Get remaining seconds for a vehicle
-   */
-  getRemainingSeconds(vehicleId: number): number {
-    const timer = this.timers.get(vehicleId);
-    if (!timer) return 0;
-
-    const now = new Date().getTime();
-    const busy = timer.busyUntil.getTime();
-    const remainingMs = busy - now;
-    
-    return Math.max(0, Math.floor(remainingMs / 1000));
-  }
-
-  /**
-   * Extend timer for a vehicle
-   */
-  extendTimer(vehicleId: number, additionalMinutes: number): boolean {
-    const timer = this.timers.get(vehicleId);
-    if (!timer) {
-      console.error(`Cannot extend timer - no timer found for vehicle ${vehicleId}`);
-      return false;
-    }
-
-    const newBusyUntil = new Date(timer.busyUntil);
-    newBusyUntil.setMinutes(newBusyUntil.getMinutes() + additionalMinutes);
-    
-    timer.busyUntil = newBusyUntil;
-    timer.remainingMinutes = this.getRemainingTime(vehicleId);
-    
-    console.log(`⏰ Timer extended for vehicle ${timer.registrationNo} by ${additionalMinutes} minutes`);
-    console.log(`📅 New expiry time: ${newBusyUntil.toLocaleTimeString()}`);
-    
-    this.emitTimers();
-    return true;
+  private emitTimers(): void {
+    this.timersSubject.next(Array.from(this.timers.values()));
   }
 }

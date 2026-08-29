@@ -1,5 +1,6 @@
 import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
 import { VehicleService } from '../services/vehicle.service';
 import { WebSocketService } from '../services/websocket.service';
 import { Vehicle } from '../models/vehicle.model';
@@ -18,17 +19,27 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
   vehicles: Vehicle[] = [];
   map: any;
   markers: Map<string, any> = new Map();
+  trails: Map<string, any> = new Map(); // Trail polyline for each vehicle
   
+  targetVehicleId: string | null = null;
   private subscriptions: Subscription[] = [];
   private mapLoadAttempts = 0;
   private readonly MAX_MAP_LOAD_ATTEMPTS = 10;
 
   constructor(
     private vehicleService: VehicleService,
-    private wsService: WebSocketService
+    private wsService: WebSocketService,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
+    // Check if navigated with a specific vehicle to focus
+    this.route.queryParams.subscribe(params => {
+      if (params['vehicleId']) {
+        this.targetVehicleId = params['vehicleId'].toString();
+      }
+    });
+
     this.loadVehicles();
     this.setupRealtimeTracking();
   }
@@ -41,13 +52,20 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     // Clean up subscriptions
     this.subscriptions.forEach(sub => sub.unsubscribe());
     
-    // Clear markers
+    // Clear markers & trails
     this.markers.forEach(marker => {
       if (this.map && marker) {
         this.map.removeLayer(marker);
       }
     });
     this.markers.clear();
+
+    this.trails.forEach(trail => {
+      if (this.map && trail) {
+        this.map.removeLayer(trail);
+      }
+    });
+    this.trails.clear();
     
     if (this.map) {
       this.map.remove();
@@ -81,6 +99,14 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
           : (response?.vehicles || response?.data || []);
         
         this.updateMarkers();
+
+        // If a target vehicle was requested in query params, focus it
+        if (this.targetVehicleId) {
+          const target = this.vehicles.find(v => (v.id || v._id)?.toString() === this.targetVehicleId);
+          if (target) {
+            setTimeout(() => this.focusVehicle(target), 500);
+          }
+        }
       },
       error: (err) => {
         console.error('Error loading vehicles:', err);
@@ -97,7 +123,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     try {
-      // Default to Rawalpindi/Islamabad coordinates
+      // Default center
       this.map = L.map('map').setView([33.5651, 73.0169], 13);
 
       // Add OpenStreetMap tiles (100% Free, no API keys needed)
@@ -134,8 +160,8 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    // Auto fit bounds if vehicles exist
-    if (bounds.length > 0) {
+    // Auto fit bounds if vehicles exist and no specific vehicle is targeted
+    if (bounds.length > 0 && !this.targetVehicleId) {
       try {
         if (bounds.length === 1) {
           this.map.setView(bounds[0], 15);
@@ -193,6 +219,18 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     marker.bindPopup(this.getInfoWindowContent(vehicle));
 
     this.markers.set(vehicleId, marker);
+
+    // Initialize vehicle movement trail if in use
+    if (isBusy && !this.trails.has(vehicleId)) {
+      const trail = L.polyline([[lat, lng]], {
+        color: '#0d6efd',
+        weight: 4,
+        opacity: 0.7,
+        dashArray: '6, 8'
+      }).addTo(this.map);
+      this.trails.set(vehicleId, trail);
+    }
+
     return marker;
   }
 
@@ -204,7 +242,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const instructor = vehicle.current_instructor?.full_name || 'Not Assigned';
 
     return `
-      <div style="padding: 10px; min-width: 220px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="padding: 10px; min-width: 230px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <h6 style="margin: 0; font-weight: 700; color: #212529; font-size: 15px;">
             <i class="bi bi-car-front-fill" style="color: #0d6efd;"></i> ${vehicle.model}
@@ -246,7 +284,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       // Subscribe to location updates
       const locationSub = this.wsService.onLocationUpdate().subscribe({
         next: (data: any) => {
-          console.log('📍 Location update received:', data);
+          console.log('📍 Real-time location update received:', data);
           this.handleLocationUpdate(data);
         },
         error: (err) => {
@@ -288,6 +326,20 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
         marker.setLatLng([vehicle.latitude, vehicle.longitude]);
         marker.setPopupContent(this.getInfoWindowContent(vehicle));
         console.log('✅ Marker position updated for vehicle:', vehicleId);
+      }
+
+      // Extend movement trail line
+      if (this.trails.has(vehicleId)) {
+        const trail = this.trails.get(vehicleId);
+        trail.addLatLng([vehicle.latitude, vehicle.longitude]);
+      } else if (this.map) {
+        const trail = L.polyline([[vehicle.latitude, vehicle.longitude]], {
+          color: '#0d6efd',
+          weight: 4,
+          opacity: 0.7,
+          dashArray: '6, 8'
+        }).addTo(this.map);
+        this.trails.set(vehicleId, trail);
       }
     }
   }

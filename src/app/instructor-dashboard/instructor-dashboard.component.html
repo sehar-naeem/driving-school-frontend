@@ -84,6 +84,39 @@
             <span class="badge-active">Active Session</span>
           </div>
         </div>
+
+        <!-- Live GPS Broadcast Control -->
+        <div class="mt-4 pt-3 border-top">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+              <h6 class="mb-1 fw-bold">
+                <i class="bi bi-broadcast me-1 text-primary"></i>Live GPS Sharing to Admin
+              </h6>
+              <p class="small text-muted mb-0" *ngIf="!isSharingGps">
+                Enable GPS sharing so Admin can see your live car location and route on the map.
+              </p>
+              <p class="small text-success mb-0" *ngIf="isSharingGps">
+                <i class="bi bi-record-circle-fill text-danger me-1"></i>
+                Broadcasting live GPS: {{ gpsLatitude | number:'1.4-4' }}, {{ gpsLongitude | number:'1.4-4' }}
+                <span *ngIf="gpsAccuracy" class="badge bg-secondary ms-1">&plusmn;{{ gpsAccuracy }}m</span>
+                <span *ngIf="gpsSpeed !== null" class="badge bg-info text-dark ms-1">{{ gpsSpeed }} km/h</span>
+              </p>
+              <div *ngIf="gpsError" class="text-danger small mt-1">
+                <i class="bi bi-exclamation-circle me-1"></i>{{ gpsError }}
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              class="btn"
+              [class.btn-success]="!isSharingGps"
+              [class.btn-danger]="isSharingGps"
+              (click)="toggleGpsSharing()">
+              <i class="bi" [class.bi-geo-alt-fill]="!isSharingGps" [class.bi-stop-circle-fill]="isSharingGps"></i>
+              {{ isSharingGps ? 'Stop Live GPS Sharing' : 'Start Live GPS Sharing' }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

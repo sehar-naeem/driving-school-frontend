@@ -1,9 +1,10 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { VehicleService } from '../services/vehicle.service';
 import { UserService } from '../services/user.service';
-import { VehicleTimerService } from '../services/vehicle-timer.service';
+import { VehicleTimerService, TimerNotification } from '../services/vehicle-timer.service';
 import { Vehicle, VehicleCreateRequest } from '../models/vehicle.model';
 import { User } from '../models/user.model';
 import { Subscription, interval } from 'rxjs';
@@ -24,6 +25,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   // Timer subscriptions
   private timerSubscription?: Subscription;
   private checkTimerInterval?: Subscription;
+  private notificationSubscription?: Subscription;
   
   // Allocate Modal
   showAllocateModal = false;
@@ -32,6 +34,14 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     instructor_id: null as any,
     time_slot: 35
   };
+
+  // Warning Modal (5 / 10 mins remaining)
+  showWarningModal = false;
+  activeWarning: TimerNotification | null = null;
+
+  // Time Expired Action Modal (0 mins remaining)
+  showExpiredModal = false;
+  activeExpired: TimerNotification | null = null;
 
   // Register Modal
   showRegisterModal = false;
@@ -62,7 +72,8 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   constructor(
     private vehicleService: VehicleService,
     private userService: UserService,
-    private timerService: VehicleTimerService
+    private timerService: VehicleTimerService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
@@ -80,8 +91,21 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
       // Timer updated, component will re-render
     });
 
-    // Check for expired timers every second
-    this.checkTimerInterval = interval(1000).subscribe(() => {
+    // Subscribe to timer warnings and expiry notifications
+    this.notificationSubscription = this.timerService.notifications$.subscribe(notification => {
+      if (notification.type === 'warning_5min' || notification.type === 'warning_10min') {
+        this.activeWarning = notification;
+        this.showWarningModal = true;
+        this.showNotification(`⚠️ Warning: ${notification.message}`, 'warning');
+      } else if (notification.type === 'expired') {
+        this.activeExpired = notification;
+        this.showExpiredModal = true;
+        this.showNotification(`⏰ Time Expired: ${notification.message}`, 'error');
+      }
+    });
+
+    // Check for expired timers every 2 seconds
+    this.checkTimerInterval = interval(2000).subscribe(() => {
       this.checkExpiredTimers();
     });
   }
@@ -90,17 +114,17 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     if (this.timerSubscription) {
       this.timerSubscription.unsubscribe();
     }
+    if (this.notificationSubscription) {
+      this.notificationSubscription.unsubscribe();
+    }
     if (this.checkTimerInterval) {
       this.checkTimerInterval.unsubscribe();
     }
   }
 
   loadVehicles(): void {
-    console.log('Loading vehicles...');
-    
     this.vehicleService.getVacantVehicles().subscribe({
       next: (vehicles) => {
-        console.log('Vacant vehicles loaded:', vehicles);
         this.vacantVehicles = vehicles;
       },
       error: (err) => {
@@ -110,9 +134,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
     this.vehicleService.getBusyVehicles().subscribe({
       next: (vehicles) => {
-        console.log('Busy vehicles loaded:', vehicles);
         this.busyVehicles = vehicles;
-        
         // Start timers for busy vehicles
         this.initializeTimers();
       },
@@ -125,7 +147,6 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   loadInstructors(): void {
     this.userService.getAllInstructors().subscribe({
       next: (instructors) => {
-        console.log('Instructors loaded:', instructors);
         this.instructors = instructors.filter(i => i.status === 'active');
       },
       error: (err) => {
@@ -161,19 +182,20 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
    */
   initializeTimers(): void {
     this.busyVehicles.forEach(vehicle => {
-      const vehicleId = parseInt(vehicle._id || vehicle.id || '0');
+      const vehicleId = (vehicle._id || vehicle.id)?.toString();
+      if (!vehicleId) return;
       
-      // Check if timer already exists
-      if (!this.timerService.isTimerExpired(vehicleId)) {
+      if (!this.timerService.hasTimer(vehicleId)) {
         const remaining = this.calculateRemainingMinutes(vehicle);
-        
         if (remaining > 0) {
+          const instructorName = vehicle.current_instructor?.full_name || '';
           this.timerService.startTimer(
             vehicleId,
             vehicle.registration_number,
-            remaining
+            remaining,
+            vehicle.model,
+            instructorName
           );
-          console.log(`Timer started for ${vehicle.registration_number}: ${remaining} minutes`);
         }
       }
     });
@@ -194,51 +216,15 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Check for expired timers and auto-release vehicles
+   * Check for expired timers
    */
   checkExpiredTimers(): void {
     this.busyVehicles.forEach(vehicle => {
-      const vehicleId = parseInt(vehicle._id || vehicle.id || '0');
+      const vehicleId = (vehicle._id || vehicle.id)?.toString();
+      if (!vehicleId) return;
       
       if (this.timerService.isTimerExpired(vehicleId)) {
-        console.log(`⏰ Timer expired for ${vehicle.registration_number} - Auto-releasing...`);
-        this.autoReleaseVehicle(vehicle);
-      }
-    });
-  }
-
-  /**
-   * Auto-release vehicle when timer expires
-   */
-  autoReleaseVehicle(vehicle: Vehicle): void {
-    const vehicleId = vehicle._id || vehicle.id;
-    if (!vehicleId) return;
-
-    console.log(`Auto-releasing vehicle: ${vehicle.registration_number}`);
-    
-    // Stop the timer
-    this.timerService.stopTimer(parseInt(vehicleId));
-
-    // Release the vehicle
-    this.vehicleService.releaseVehicle(vehicleId).subscribe({
-      next: (response) => {
-        console.log('Vehicle auto-released:', response);
-        
-        // Show notification
-        this.showNotification(
-          `⏰ Time's up! Vehicle ${vehicle.registration_number} has been automatically released`,
-          'success'
-        );
-        
-        // Reload vehicles
-        this.loadVehicles();
-      },
-      error: (err) => {
-        console.error('Auto-release error:', err);
-        this.showNotification(
-          `Failed to auto-release vehicle ${vehicle.registration_number}`,
-          'error'
-        );
+        // Handled via notification stream
       }
     });
   }
@@ -247,15 +233,14 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
    * Get remaining time display for a vehicle
    */
   getRemainingTime(vehicle: Vehicle): string {
-    const vehicleId = parseInt(vehicle._id || vehicle.id || '0');
+    const vehicleId = (vehicle._id || vehicle.id)?.toString();
+    if (!vehicleId) return 'N/A';
     
-    // Try to get from timer service first
     const timerInfo = this.timerService.getTimerInfo(vehicleId);
     if (timerInfo.remaining !== '0s') {
       return timerInfo.remaining;
     }
 
-    // Fallback to calculation
     if (!vehicle.session_start || !vehicle.time_slot) return 'N/A';
     
     const startTime = new Date(vehicle.session_start).getTime();
@@ -269,6 +254,42 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     const minutes = remainingMinutes % 60;
     
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  }
+
+  // ===== WARNING MODAL ACTIONS =====
+  checkWarningOnMap(): void {
+    const vehicleId = this.activeWarning?.vehicleId;
+    this.closeWarningModal();
+    if (vehicleId) {
+      this.router.navigate(['/admin/tracking-map'], { queryParams: { vehicleId } });
+    }
+  }
+
+  closeWarningModal(): void {
+    this.showWarningModal = false;
+    this.activeWarning = null;
+  }
+
+  // ===== EXPIRED MODAL ACTIONS =====
+  releaseExpiredVehicle(): void {
+    if (!this.activeExpired) return;
+    const vehicleId = this.activeExpired.vehicleId;
+    this.closeExpiredModal();
+    this.releaseVehicle(vehicleId);
+  }
+
+  extendExpiredVehicle(minutes: number = 15): void {
+    if (!this.activeExpired) return;
+    const vehicleId = this.activeExpired.vehicleId;
+    this.timerService.extendTimer(vehicleId, minutes);
+    this.showNotification(`Vehicle session extended by ${minutes} minutes!`, 'success');
+    this.closeExpiredModal();
+    this.loadVehicles();
+  }
+
+  closeExpiredModal(): void {
+    this.showExpiredModal = false;
+    this.activeExpired = null;
   }
 
   // ===== REGISTER VEHICLE MODAL =====
@@ -302,7 +323,6 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
     this.vehicleService.createVehicle(this.registerFormData).subscribe({
       next: (response) => {
-        console.log('Vehicle registered:', response);
         this.showNotification('Vehicle registered successfully!', 'success');
         this.closeRegisterModal();
         this.loadVehicles();
@@ -366,7 +386,6 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
     this.vehicleService.updateVehicle(vehicleId, updateData).subscribe({
       next: (response) => {
-        console.log('Vehicle updated:', response);
         this.showNotification('Vehicle updated successfully!', 'success');
         this.closeEditModal();
         this.loadVehicles();
@@ -394,7 +413,6 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
     this.vehicleService.deleteVehicle(vehicleId).subscribe({
       next: () => {
-        console.log('Vehicle deleted');
         this.showNotification('Vehicle deleted successfully!', 'success');
         this.loadVehicles();
       },
@@ -422,26 +440,22 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
   allocateVehicle(): void {
     if (this.selectedVehicle && this.allocationData.instructor_id) {
-      console.log('Allocating vehicle:', {
-        vehicle_id: this.selectedVehicle._id,
-        instructor_id: this.allocationData.instructor_id,
-        time_slot: this.allocationData.time_slot
-      });
-
+      const vehicleId = (this.selectedVehicle._id || this.selectedVehicle.id)?.toString() || '';
+      
       this.vehicleService.allocateVehicle({
-        vehicle_id: this.selectedVehicle._id,
+        vehicle_id: vehicleId,
         instructor_id: this.allocationData.instructor_id,
         time_slot: this.allocationData.time_slot
       }).subscribe({
         next: (response) => {
-          console.log('Vehicle allocated successfully:', response);
+          const instructorName = this.instructors.find(i => (i._id || i.id)?.toString() === this.allocationData.instructor_id?.toString())?.full_name || '';
           
-          // Start timer for allocated vehicle
-          const vehicleId = parseInt(this.selectedVehicle!._id || '0');
           this.timerService.startTimer(
             vehicleId,
             this.selectedVehicle!.registration_number,
-            this.allocationData.time_slot
+            this.allocationData.time_slot,
+            this.selectedVehicle!.model,
+            instructorName
           );
 
           this.showNotification(
@@ -463,15 +477,14 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
   // ===== RELEASE VEHICLE =====
   releaseVehicle(vehicleId: string): void {
+    if (!vehicleId) return;
+
     if (confirm('Are you sure you want to release this vehicle?')) {
-      console.log('Manually releasing vehicle:', vehicleId);
+      const id = vehicleId.toString();
+      this.timerService.stopTimer(id);
       
-      // Stop timer
-      this.timerService.stopTimer(parseInt(vehicleId));
-      
-      this.vehicleService.releaseVehicle(vehicleId).subscribe({
+      this.vehicleService.releaseVehicle(id).subscribe({
         next: (response) => {
-          console.log('Vehicle released:', response);
           this.showNotification('Vehicle released successfully!', 'success');
           this.loadVehicles();
           this.loadInstructors();
@@ -503,16 +516,16 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   private showNotification(message: string, type: 'info' | 'success' | 'warning' | 'error'): void {
     console.log(`[${type.toUpperCase()}] ${message}`);
     
-    // Browser notification
+    // Browser desktop notification if permitted
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Vehicle Management', {
-        body: message,
-        icon: '/assets/icons/car.png',
-        badge: '/assets/icons/badge.png'
-      });
+      try {
+        new Notification('Driving School Management', {
+          body: message,
+          icon: '/favicon.ico'
+        });
+      } catch (e) {
+        // Ignore fallback
+      }
     }
-    
-    // Also show alert for now (you can replace with toast notification)
-    alert(message);
   }
 }

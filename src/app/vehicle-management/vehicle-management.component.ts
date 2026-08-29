@@ -135,6 +135,28 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Filter out instructors who are already driving / assigned to a busy vehicle
+   */
+  get availableInstructors(): User[] {
+    const busyInstructorIds = new Set<string>();
+
+    this.busyVehicles.forEach(v => {
+      if (v.current_instructor_id) {
+        busyInstructorIds.add(v.current_instructor_id.toString());
+      }
+      if (v.current_instructor && (v.current_instructor._id || (v.current_instructor as any).id)) {
+        busyInstructorIds.add((v.current_instructor._id || (v.current_instructor as any).id).toString());
+      }
+    });
+
+    return this.instructors.filter(i => {
+      const id = (i._id || i.id)?.toString();
+      if (!id) return true;
+      return !busyInstructorIds.has(id) && !i.is_busy;
+    });
+  }
+
+  /**
    * Initialize timers for all busy vehicles
    */
   initializeTimers(): void {
@@ -429,6 +451,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
           
           this.closeAllocateModal();
           this.loadVehicles();
+          this.loadInstructors();
         },
         error: (err) => {
           console.error('Allocation error:', err);
@@ -451,6 +474,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
           console.log('Vehicle released:', response);
           this.showNotification('Vehicle released successfully!', 'success');
           this.loadVehicles();
+          this.loadInstructors();
         },
         error: (err) => {
           console.error('Release error:', err);

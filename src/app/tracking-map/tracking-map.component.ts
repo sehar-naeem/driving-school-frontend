@@ -5,7 +5,7 @@ import { WebSocketService } from '../services/websocket.service';
 import { Vehicle } from '../models/vehicle.model';
 import { Subscription } from 'rxjs';
 
-declare var google: any;
+declare var L: any;
 
 @Component({
   selector: 'app-tracking-map',
@@ -18,7 +18,6 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
   vehicles: Vehicle[] = [];
   map: any;
   markers: Map<string, any> = new Map();
-  infoWindows: Map<string, any> = new Map();
   
   private subscriptions: Subscription[] = [];
   private mapLoadAttempts = 0;
@@ -43,26 +42,33 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.subscriptions.forEach(sub => sub.unsubscribe());
     
     // Clear markers
-    this.markers.forEach(marker => marker.setMap(null));
+    this.markers.forEach(marker => {
+      if (this.map && marker) {
+        this.map.removeLayer(marker);
+      }
+    });
     this.markers.clear();
-    this.infoWindows.clear();
     
+    if (this.map) {
+      this.map.remove();
+    }
+
     // Disconnect WebSocket
     this.wsService.disconnect();
   }
 
   private initMapWithRetry(): void {
-    if (typeof google !== 'undefined' && google.maps) {
+    if (typeof L !== 'undefined') {
       this.initMap();
       return;
     }
 
     if (this.mapLoadAttempts < this.MAX_MAP_LOAD_ATTEMPTS) {
       this.mapLoadAttempts++;
-      console.log(`Waiting for Google Maps... Attempt ${this.mapLoadAttempts}`);
-      setTimeout(() => this.initMapWithRetry(), 500);
+      console.log(`Waiting for Leaflet Map... Attempt ${this.mapLoadAttempts}`);
+      setTimeout(() => this.initMapWithRetry(), 300);
     } else {
-      console.error('Google Maps failed to load. Please check your API key.');
+      console.error('Leaflet failed to load.');
     }
   }
 
@@ -70,7 +76,6 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const sub = this.vehicleService.getAllVehicles().subscribe({
       next: (response: any) => {
         console.log('Vehicles loaded:', response);
-        // Handle both array and object responses
         this.vehicles = Array.isArray(response) 
           ? response 
           : (response?.vehicles || response?.data || []);
@@ -91,162 +96,147 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const mapOptions = {
-      center: { lat: 33.5651, lng: 73.0169 }, // Rawalpindi coordinates
-      zoom: 13,
-      mapTypeId: google.maps.MapTypeId.ROADMAP,
-      zoomControl: true,
-      mapTypeControl: true,
-      scaleControl: true,
-      streetViewControl: false,
-      rotateControl: false,
-      fullscreenControl: true,
-      styles: [
-        {
-          featureType: 'poi',
-          elementType: 'labels',
-          stylers: [{ visibility: 'off' }]
-        }
-      ]
-    };
-
     try {
-      this.map = new google.maps.Map(mapElement, mapOptions);
-      console.log('✅ Map initialized successfully');
-      
-      // Wait for map to be fully loaded
-      google.maps.event.addListenerOnce(this.map, 'idle', () => {
-        console.log('✅ Map is ready');
-        this.updateMarkers();
-      });
+      // Default to Rawalpindi/Islamabad coordinates
+      this.map = L.map('map').setView([33.5651, 73.0169], 13);
+
+      // Add OpenStreetMap tiles (100% Free, no API keys needed)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(this.map);
+
+      console.log('✅ Leaflet Map initialized successfully');
+      this.updateMarkers();
     } catch (error) {
-      console.error('❌ Error initializing map:', error);
+      console.error('❌ Error initializing Leaflet map:', error);
     }
   }
 
   updateMarkers(): void {
-    if (!this.map) {
-      console.log('⏳ Map not ready yet');
+    if (!this.map || typeof L === 'undefined') {
       return;
     }
 
     // Clear existing markers
     this.markers.forEach(marker => {
-      marker.setMap(null);
+      this.map.removeLayer(marker);
     });
     this.markers.clear();
-    this.infoWindows.forEach(iw => iw.close());
-    this.infoWindows.clear();
 
-    console.log('🔄 Updating markers for', this.vehicles.length, 'vehicles');
+    const bounds: any[] = [];
 
     // Add new markers
     this.vehicles.forEach(vehicle => {
-      this.createMarkerForVehicle(vehicle);
+      const marker = this.createMarkerForVehicle(vehicle);
+      if (marker) {
+        bounds.push([Number(vehicle.latitude), Number(vehicle.longitude)]);
+      }
     });
 
-    // Fit map bounds to show all markers
-    if (this.markers.size > 0) {
-      const bounds = new google.maps.LatLngBounds();
-      this.markers.forEach(marker => {
-        bounds.extend(marker.getPosition());
-      });
-      this.map.fitBounds(bounds);
-      
-      // Don't zoom in too much if there's only one vehicle
-      if (this.markers.size === 1) {
-        this.map.setZoom(15);
+    // Auto fit bounds if vehicles exist
+    if (bounds.length > 0) {
+      try {
+        if (bounds.length === 1) {
+          this.map.setView(bounds[0], 15);
+        } else {
+          this.map.fitBounds(bounds, { padding: [50, 50] });
+        }
+      } catch (e) {
+        console.warn('Could not fit bounds:', e);
       }
     }
-
-    console.log('✅ Markers updated:', this.markers.size);
   }
 
-  private createMarkerForVehicle(vehicle: Vehicle): void {
-    const vehicleId = vehicle.id || vehicle._id;
-    if (!vehicleId) {
-      console.warn('Vehicle has no ID:', vehicle);
-      return;
-    }
+  private createMarkerForVehicle(vehicle: Vehicle): any {
+    const vehicleId = (vehicle.id || vehicle._id)?.toString();
+    if (!vehicleId) return null;
 
-    // Validate coordinates
-    if (!vehicle.latitude || !vehicle.longitude) {
-      console.warn('Vehicle has invalid coordinates:', vehicle);
-      return;
-    }
+    if (!vehicle.latitude || !vehicle.longitude) return null;
 
-    const position = { 
-      lat: Number(vehicle.latitude), 
-      lng: Number(vehicle.longitude) 
-    };
-    
-    // Create custom marker icon
-    const markerIcon = {
-      path: google.maps.SymbolPath.CIRCLE,
-      scale: 14,
-      fillColor: vehicle.status === 'busy' ? '#ffc107' : '#28a745',
-      fillOpacity: 1,
-      strokeColor: '#ffffff',
-      strokeWeight: 3
-    };
+    const lat = Number(vehicle.latitude);
+    const lng = Number(vehicle.longitude);
 
-    // Create marker
-    const marker = new google.maps.Marker({
-      position: position,
-      map: this.map,
-      title: `${vehicle.model} - ${vehicle.registration_number}`,
-      icon: markerIcon,
-      animation: google.maps.Animation.DROP,
-      optimized: true
+    if (isNaN(lat) || isNaN(lng)) return null;
+
+    const isBusy = vehicle.status === 'busy';
+    const markerColor = isBusy ? '#ffc107' : '#28a745';
+    const textColor = isBusy ? '#000000' : '#ffffff';
+
+    // Custom HTML Marker Icon
+    const customIcon = L.divIcon({
+      className: 'custom-leaflet-marker',
+      html: `
+        <div style="
+          background-color: ${markerColor};
+          color: ${textColor};
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+          border: 2.5px solid #ffffff;
+          font-size: 18px;
+          cursor: pointer;
+        ">
+          <i class="bi bi-car-front-fill"></i>
+        </div>
+      `,
+      iconSize: [38, 38],
+      iconAnchor: [19, 19],
+      popupAnchor: [0, -20]
     });
 
-    // Create info window
-    const infoWindow = new google.maps.InfoWindow({
-      content: this.getInfoWindowContent(vehicle)
-    });
-
-    // Add click listener
-    marker.addListener('click', () => {
-      // Close all other info windows
-      this.infoWindows.forEach(iw => iw.close());
-      infoWindow.open(this.map, marker);
-    });
+    const marker = L.marker([lat, lng], { icon: customIcon }).addTo(this.map);
+    marker.bindPopup(this.getInfoWindowContent(vehicle));
 
     this.markers.set(vehicleId, marker);
-    this.infoWindows.set(vehicleId, infoWindow);
+    return marker;
   }
 
   getInfoWindowContent(vehicle: Vehicle): string {
-    const status = vehicle.status === 'busy' ? 'In Use' : 'Available';
-    const statusColor = vehicle.status === 'busy' ? '#ffc107' : '#28a745';
+    const isBusy = vehicle.status === 'busy';
+    const status = isBusy ? 'In Use' : 'Available';
+    const statusBg = isBusy ? '#ffc107' : '#28a745';
+    const statusText = isBusy ? '#212529' : '#ffffff';
     const instructor = vehicle.current_instructor?.full_name || 'Not Assigned';
 
     return `
-      <div style="padding: 12px; min-width: 220px; font-family: Arial, sans-serif;">
-        <h6 style="margin: 0 0 10px 0; font-weight: 600; color: #333;">
-          <i class="bi bi-car-front-fill"></i> ${vehicle.model}
-        </h6>
-        <p style="margin: 5px 0; font-size: 14px;">
-          <strong>Reg:</strong> ${vehicle.registration_number}
-        </p>
-        <p style="margin: 5px 0; font-size: 14px;">
-          <strong>Status:</strong> 
-          <span style="color: ${statusColor}; font-weight: 600;">${status}</span>
-        </p>
-        <p style="margin: 5px 0; font-size: 14px;">
-          <strong>Instructor:</strong> ${instructor}
-        </p>
-        ${vehicle.time_slot ? `
-          <p style="margin: 5px 0; font-size: 14px;">
-            <strong>Time Slot:</strong> ${vehicle.time_slot} min
-          </p>
-        ` : ''}
-        <p style="margin: 5px 0; font-size: 12px; color: #666;">
-          <strong>Location:</strong><br/>
-          ${vehicle.latitude.toFixed(4)}, ${vehicle.longitude.toFixed(4)}
-        </p>
+      <div style="padding: 10px; min-width: 220px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h6 style="margin: 0; font-weight: 700; color: #212529; font-size: 15px;">
+            <i class="bi bi-car-front-fill" style="color: #0d6efd;"></i> ${vehicle.model}
+          </h6>
+          <span style="background: ${statusBg}; color: ${statusText}; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
+            ${status}
+          </span>
+        </div>
+        <div style="font-size: 13px; color: #495057; line-height: 1.6;">
+          <div><strong>Reg Number:</strong> ${vehicle.registration_number}</div>
+          <div><strong>Instructor:</strong> ${instructor}</div>
+          ${vehicle.time_slot ? `<div><strong>Time Slot:</strong> ${vehicle.time_slot} mins</div>` : ''}
+          <div style="margin-top: 4px; font-size: 11px; color: #6c757d;">
+            <strong>GPS:</strong> ${Number(vehicle.latitude).toFixed(4)}, ${Number(vehicle.longitude).toFixed(4)}
+          </div>
+        </div>
       </div>
     `;
+  }
+
+  focusVehicle(vehicle: Vehicle): void {
+    if (!this.map || !vehicle.latitude || !vehicle.longitude) return;
+
+    const lat = Number(vehicle.latitude);
+    const lng = Number(vehicle.longitude);
+    this.map.setView([lat, lng], 16, { animate: true });
+
+    const vehicleId = (vehicle.id || vehicle._id)?.toString();
+    if (vehicleId && this.markers.has(vehicleId)) {
+      const marker = this.markers.get(vehicleId);
+      marker.openPopup();
+    }
   }
 
   setupRealtimeTracking(): void {
@@ -282,40 +272,23 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private handleLocationUpdate(data: any): void {
-    const vehicleId = data.vehicle_id || data.vehicleId || data.id;
-    if (!vehicleId) {
-      console.warn('Location update has no vehicle ID:', data);
-      return;
-    }
+    const vehicleId = (data.vehicle_id || data.vehicleId || data.id)?.toString();
+    if (!vehicleId) return;
 
-    // Update vehicle in list
     const vehicle = this.vehicles.find(v => 
-      v.id === vehicleId || v._id === vehicleId
+      (v.id || v._id)?.toString() === vehicleId
     );
     
     if (vehicle) {
-      vehicle.latitude = data.latitude;
-      vehicle.longitude = data.longitude;
+      vehicle.latitude = Number(data.latitude);
+      vehicle.longitude = Number(data.longitude);
       
-      // Update marker position
       const marker = this.markers.get(vehicleId);
       if (marker && this.map) {
-        const newPosition = { 
-          lat: Number(data.latitude), 
-          lng: Number(data.longitude) 
-        };
-        marker.setPosition(newPosition);
-        
-        // Update info window content
-        const infoWindow = this.infoWindows.get(vehicleId);
-        if (infoWindow) {
-          infoWindow.setContent(this.getInfoWindowContent(vehicle));
-        }
-        
+        marker.setLatLng([vehicle.latitude, vehicle.longitude]);
+        marker.setPopupContent(this.getInfoWindowContent(vehicle));
         console.log('✅ Marker position updated for vehicle:', vehicleId);
       }
-    } else {
-      console.warn('Vehicle not found for location update:', vehicleId);
     }
   }
 }

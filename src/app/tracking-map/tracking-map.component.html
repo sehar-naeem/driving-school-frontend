@@ -18,7 +18,8 @@
         <div *ngFor="let vehicle of vehicles" 
              class="vehicle-list-item"
              [class.busy]="vehicle.status === 'busy'"
-             [class.vacant]="vehicle.status === 'vacant'">
+             [class.vacant]="vehicle.status === 'vacant'"
+             (click)="focusVehicle(vehicle)">
           <div class="vehicle-icon">
             <i class="bi bi-car-front-fill"></i>
           </div>

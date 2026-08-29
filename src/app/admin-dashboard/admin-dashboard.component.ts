@@ -65,11 +65,11 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       this.stats.totalInstructors = instructors.length;
       this.stats.activeInstructors = instructors.filter(i => i.status === 'active').length;
       
-      // Mock active instructors with vehicles
-      this.activeInstructors = instructors.slice(0, 4).map(inst => ({
+      // Active instructors with actual vehicles
+      this.activeInstructors = instructors.slice(0, 6).map(inst => ({
         ...inst,
-        isActive: Math.random() > 0.3,
-        currentVehicle: Math.random() > 0.5 ? 'ABC-123' : null
+        isActive: inst.status === 'active',
+        currentVehicle: inst.busy_vehicle ? inst.busy_vehicle.registration_number : null
       }));
     });
 

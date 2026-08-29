@@ -32,11 +32,19 @@
           <div class="instructor-avatar">
             <i class="bi bi-person-fill"></i>
           </div>
-          <span class="badge" 
-                [class.bg-success]="instructor.status === 'active'"
-                [class.bg-secondary]="instructor.status === 'inactive'">
-            {{ instructor.status }}
-          </span>
+          <div class="d-flex flex-column align-items-end gap-1">
+            <span class="badge" 
+                  [class.bg-success]="instructor.status === 'active'"
+                  [class.bg-secondary]="instructor.status === 'inactive'">
+              {{ instructor.status }}
+            </span>
+            <span *ngIf="instructor.is_busy" class="badge bg-warning text-dark">
+              <i class="bi bi-car-front-fill me-1"></i>In Use ({{ instructor.busy_vehicle?.registration_number }})
+            </span>
+            <span *ngIf="!instructor.is_busy && instructor.status === 'active'" class="badge bg-info text-dark">
+              <i class="bi bi-check-circle me-1"></i>Available
+            </span>
+          </div>
         </div>
 
         <div class="instructor-body">

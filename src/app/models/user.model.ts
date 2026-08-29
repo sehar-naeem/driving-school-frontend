@@ -8,6 +8,11 @@ export interface User {
   phone?: string;
   role: 'admin' | 'instructor' | 'student';
   status: 'active' | 'inactive';
+  is_busy?: boolean;
+  busy_vehicle?: {
+    registration_number: string;
+    model: string;
+  } | null;
   created_at?: Date;
   createdAt?: Date;
 }

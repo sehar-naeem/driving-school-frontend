@@ -1,11 +1,11 @@
 {
-  "version": 2,
+  "framework": "angular",
   "buildCommand": "npm run build",
   "outputDirectory": "dist/driving_school/browser",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

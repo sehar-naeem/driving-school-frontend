@@ -183,10 +183,10 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
   loadInstructors(): void {
     this.userService.getAllInstructors().subscribe({
-      next: (instructors) => {
-        this.instructors = instructors.filter(i => i.status === 'active');
+      next: (instructors: User[]) => {
+        this.instructors = instructors.filter((i: User) => i.status === 'active');
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Error loading instructors:', err);
       }
     });
@@ -198,7 +198,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   get availableInstructors(): User[] {
     const busyInstructorIds = new Set<string>();
 
-    this.busyVehicles.forEach(v => {
+    this.busyVehicles.forEach((v: Vehicle) => {
       if (v.current_instructor_id) {
         busyInstructorIds.add(v.current_instructor_id.toString());
       }
@@ -207,7 +207,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
       }
     });
 
-    return this.instructors.filter(i => {
+    return this.instructors.filter((i: User) => {
       const id = (i._id || i.id)?.toString();
       if (!id) return true;
       return !busyInstructorIds.has(id) && !i.is_busy;
@@ -218,7 +218,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
    * Initialize timers for all busy vehicles
    */
   initializeTimers(): void {
-    this.busyVehicles.forEach(vehicle => {
+    this.busyVehicles.forEach((vehicle: Vehicle) => {
       const vehicleId = (vehicle._id || vehicle.id)?.toString();
       if (!vehicleId) return;
       

@@ -111,8 +111,8 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     const currentInstructorId = this.getEntityId(this.currentUser);
 
     // Load current vehicle allocation with robust ID matching
-    this.vehicleService.getAllVehicles().subscribe(vehicles => {
-      this.currentVehicle = vehicles.find(v => {
+    this.vehicleService.getAllVehicles().subscribe((vehicles: Vehicle[]) => {
+      this.currentVehicle = vehicles.find((v: Vehicle) => {
         if (v.status !== 'busy') return false;
         const vInstId = this.getEntityId(v.current_instructor_id) || this.getEntityId(v.current_instructor);
         return vInstId && currentInstructorId && vInstId === currentInstructorId;
@@ -140,11 +140,11 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     });
 
     // Load instructor's complaints
-    this.complaintService.getMyComplaints().subscribe(complaints => {
+    this.complaintService.getMyComplaints().subscribe((complaints: Complaint[]) => {
       this.myComplaints = complaints.slice(0, 5);
       this.stats.totalComplaints = complaints.length;
-      this.stats.pendingComplaints = complaints.filter(c => c.status === 'pending').length;
-      this.stats.resolvedComplaints = complaints.filter(c => c.status === 'resolved').length;
+      this.stats.pendingComplaints = complaints.filter((c: Complaint) => c.status === 'pending').length;
+      this.stats.resolvedComplaints = complaints.filter((c: Complaint) => c.status === 'resolved').length;
     });
   }
 

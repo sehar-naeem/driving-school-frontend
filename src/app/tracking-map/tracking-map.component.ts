@@ -92,26 +92,26 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   loadVehicles(): void {
     const sub = this.vehicleService.getAllVehicles().subscribe({
-      next: (response: any) => {
-        const rawVehicles = Array.isArray(response) 
+      next: (response: Vehicle[] | any) => {
+        const rawVehicles: Vehicle[] = Array.isArray(response) 
           ? response 
           : (response?.vehicles || response?.data || []);
         
         // 🔒 ONLY show vehicles that are currently in use / busy on the live tracking map
-        this.vehicles = rawVehicles.filter(v => v.status === 'busy');
+        this.vehicles = rawVehicles.filter((v: Vehicle) => v.status === 'busy');
         console.log('In-use vehicles loaded for live tracking:', this.vehicles);
         
         this.updateMarkers();
 
         // If a target vehicle was requested in query params, focus it
         if (this.targetVehicleId) {
-          const target = this.vehicles.find(v => (v.id || v._id)?.toString() === this.targetVehicleId);
+          const target = this.vehicles.find((v: Vehicle) => (v.id || v._id)?.toString() === this.targetVehicleId);
           if (target) {
             setTimeout(() => this.focusVehicle(target), 500);
           }
         }
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Error loading vehicles:', err);
       }
     });
@@ -298,7 +298,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
           console.log('📍 Real-time location update received:', data);
           this.handleLocationUpdate(data);
         },
-        error: (err) => {
+        error: (err: any) => {
           console.error('❌ WebSocket location update error:', err);
         }
       });
@@ -310,7 +310,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
           console.log('🔄 Vehicle update received, reloading in-use vehicles');
           this.loadVehicles();
         },
-        error: (err) => {
+        error: (err: any) => {
           console.error('❌ WebSocket vehicle update error:', err);
         }
       });
@@ -334,7 +334,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     const vehicleId = (data.vehicle_id || data.vehicleId || data.id)?.toString();
     if (!vehicleId) return;
 
-    const vehicle = this.vehicles.find(v => 
+    const vehicle = this.vehicles.find((v: Vehicle) => 
       (v.id || v._id)?.toString() === vehicleId
     );
     

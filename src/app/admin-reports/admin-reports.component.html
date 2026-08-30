@@ -178,7 +178,7 @@
                       type="button" 
                       class="btn btn-sm btn-outline-primary"
                       *ngIf="report.activeVehicle"
-                      (click)="navigateToMap(report.activeVehicle.id || report.activeVehicle._id)">
+                      (click)="navigateToMap(report.activeVehicle?.id || report.activeVehicle?._id)">
                       <i class="bi bi-geo-alt-fill me-1"></i>Track Map
                     </button>
                     <span *ngIf="!report.activeVehicle" class="text-muted small">—</span>

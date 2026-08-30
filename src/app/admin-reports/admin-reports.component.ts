@@ -88,10 +88,15 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
     this.subscriptions.forEach(s => s.unsubscribe());
   }
 
+  private getEntityId(entity: any): string {
+    if (!entity) return '';
+    if (typeof entity === 'string' || typeof entity === 'number') return entity.toString();
+    return (entity._id || entity.id || '').toString();
+  }
+
   loadAllData(): void {
     this.loading = true;
 
-    // Load Instructors, Vehicles, and Complaints in parallel
     this.userService.getAllInstructors().subscribe({
       next: (instructors: User[]) => {
         this.instructors = instructors.filter((i: User) => i.status === 'active');
@@ -131,18 +136,18 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
     const logs: ActivityLogItem[] = [];
 
     this.instructors.forEach((instructor: User) => {
-      const instId = (instructor._id || instructor.id)?.toString();
+      const instId = this.getEntityId(instructor);
       
       // Find current vehicle assigned to this instructor
       const assignedVehicle = this.vehicles.find((v: Vehicle) => {
-        const vInstId = (v.current_instructor_id?._id || v.current_instructor_id || v.current_instructor?._id || v.current_instructor?.id)?.toString();
-        return vInstId === instId;
+        const vInstId = this.getEntityId(v.current_instructor_id) || this.getEntityId(v.current_instructor);
+        return vInstId && instId && vInstId === instId;
       });
 
       // Find complaints filed by or against this instructor
       const instComplaints = this.complaints.filter((c: Complaint) => {
-        const cInstId = (c.instructor_id?._id || c.instructor_id)?.toString();
-        return cInstId === instId;
+        const cInstId = this.getEntityId(c.instructor_id) || this.getEntityId(c.instructor);
+        return cInstId && instId && cInstId === instId;
       });
 
       // Calculate sessions & extensions
@@ -155,6 +160,7 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
       const isBusy = assignedVehicle?.status === 'busy';
 
       if (assignedVehicle) {
+        const vehicleId = this.getEntityId(assignedVehicle);
         sessions += 1;
         totalMinutes += assignedVehicle.time_slot || 45;
 
@@ -177,7 +183,7 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
         // Generate activity log items for active vehicle
         if (assignedVehicle.session_start) {
           logs.push({
-            id: `alloc-${assignedVehicle._id}`,
+            id: `alloc-${vehicleId}`,
             timestamp: new Date(assignedVehicle.session_start),
             type: 'allocation',
             title: `Vehicle Allocation: ${assignedVehicle.model}`,
@@ -192,7 +198,7 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
 
         if (assignedVehicle.instructor_status === 'on_way' || assignedVehicle.instructor_status === 'in_lesson') {
           logs.push({
-            id: `onway-${assignedVehicle._id}`,
+            id: `onway-${vehicleId}`,
             timestamp: assignedVehicle.instructor_acknowledged_at ? new Date(assignedVehicle.instructor_acknowledged_at) : new Date(),
             type: 'on_way',
             title: `Lesson In Progress`,
@@ -207,7 +213,7 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
 
         if (assignedVehicle.is_parked) {
           logs.push({
-            id: `parked-${assignedVehicle._id}`,
+            id: `parked-${vehicleId}`,
             timestamp: assignedVehicle.parked_at ? new Date(assignedVehicle.parked_at) : new Date(),
             type: 'parked',
             title: `Vehicle Parked & Session Completed`,
@@ -222,7 +228,7 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
 
         if (assignedVehicle.extension_request) {
           logs.push({
-            id: `ext-${assignedVehicle._id}`,
+            id: `ext-${vehicleId}`,
             timestamp: assignedVehicle.extension_request.requested_at ? new Date(assignedVehicle.extension_request.requested_at) : new Date(),
             type: 'extension_approved',
             title: `Time Extension (+${assignedVehicle.extension_request.minutes}m)`,
@@ -238,20 +244,22 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
 
       // Add complaints to activity log
       instComplaints.forEach((c: Complaint) => {
+        const compId = this.getEntityId(c) || Math.random().toString();
+        const dateVal = c.createdAt || c.created_at;
         logs.push({
-          id: `comp-${c._id || c.id}`,
-          timestamp: c.createdAt ? new Date(c.createdAt) : new Date(),
+          id: `comp-${compId}`,
+          timestamp: dateVal ? new Date(dateVal) : new Date(),
           type: 'complaint',
           title: `Complaint Filed: ${c.title || 'Vehicle/Lesson issue'}`,
           description: `Filed by ${instructor.full_name}: ${c.description || 'Details reported'}`,
           instructorName: instructor.full_name,
-          vehicleReg: c.vehicle_id ? (c.vehicle_id as any).registration_number : undefined,
+          vehicleReg: c.vehicle ? c.vehicle.registration_number : undefined,
           badgeClass: 'bg-danger',
           icon: 'bi-exclamation-triangle-fill'
         });
       });
 
-      // Calculate compliance score (95-100% based on complaints & timely parking)
+      // Calculate compliance score (80-100% based on complaints)
       const penalty = (instComplaints.length * 5);
       const compliance = Math.max(80, 100 - penalty);
 
@@ -301,8 +309,8 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
     this.subscriptions.push(updateSub);
 
     const locSub = this.wsService.onLocationUpdate().subscribe((data: any) => {
-      const vehicleId = (data.vehicle_id || data.vehicleId || data.id)?.toString();
-      const report = this.instructorReports.find(r => (r.activeVehicle?._id || r.activeVehicle?.id)?.toString() === vehicleId);
+      const vehicleId = this.getEntityId(data.vehicle_id || data.vehicleId || data.id);
+      const report = this.instructorReports.find(r => this.getEntityId(r.activeVehicle) === vehicleId);
       if (report) {
         report.lastKnownLocation = { lat: Number(data.latitude), lng: Number(data.longitude) };
       }
@@ -340,7 +348,8 @@ export class AdminReportsComponent implements OnInit, OnDestroy {
     return list;
   }
 
-  navigateToMap(vehicleId?: string): void {
+  navigateToMap(vehicle: any): void {
+    const vehicleId = this.getEntityId(vehicle);
     if (vehicleId) {
       this.router.navigate(['/admin/tracking'], { queryParams: { vehicleId } });
     } else {

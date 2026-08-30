@@ -77,7 +77,7 @@ export class InstructorReportsComponent implements OnInit, OnDestroy {
 
   private getEntityId(entity: any): string {
     if (!entity) return '';
-    if (typeof entity === 'string') return entity;
+    if (typeof entity === 'string' || typeof entity === 'number') return entity.toString();
     return (entity._id || entity.id || '').toString();
   }
 
@@ -134,7 +134,8 @@ export class InstructorReportsComponent implements OnInit, OnDestroy {
     myVehicles.forEach((v: Vehicle) => {
       const isParked = !!v.is_parked;
       const vehicleExtMins = v.extension_request?.status === 'approved' || v.extension_request ? (v.extension_request.minutes || 0) : 0;
-      
+      const vehicleId = this.getEntityId(v);
+
       if (v.extension_request) {
         extCount++;
         extraMins += vehicleExtMins;
@@ -148,7 +149,7 @@ export class InstructorReportsComponent implements OnInit, OnDestroy {
       }
 
       records.push({
-        id: (v._id || v.id)?.toString() || '',
+        id: vehicleId,
         vehicleModel: v.model,
         registrationNumber: v.registration_number,
         timeSlot: v.time_slot || 45,
@@ -163,7 +164,7 @@ export class InstructorReportsComponent implements OnInit, OnDestroy {
       // Personal Activity Logs
       if (v.session_start) {
         logs.push({
-          id: `alloc-${v._id}`,
+          id: `alloc-${vehicleId}`,
           timestamp: new Date(v.session_start),
           title: `Vehicle Assigned: ${v.model} (${v.registration_number})`,
           description: `You were allocated ${v.model} for a ${v.time_slot}-minute driving session.`,
@@ -175,7 +176,7 @@ export class InstructorReportsComponent implements OnInit, OnDestroy {
 
       if (v.instructor_status === 'on_way' || v.instructor_status === 'in_lesson') {
         logs.push({
-          id: `onway-${v._id}`,
+          id: `onway-${vehicleId}`,
           timestamp: v.instructor_acknowledged_at ? new Date(v.instructor_acknowledged_at) : new Date(),
           title: `Lesson Started / On The Way`,
           description: `You acknowledged the vehicle allocation and started the lesson with your student.`,
@@ -187,7 +188,7 @@ export class InstructorReportsComponent implements OnInit, OnDestroy {
 
       if (v.extension_request) {
         logs.push({
-          id: `ext-${v._id}`,
+          id: `ext-${vehicleId}`,
           timestamp: v.extension_request.requested_at ? new Date(v.extension_request.requested_at) : new Date(),
           title: `Time Extension Request (+${v.extension_request.minutes}m)`,
           description: `You requested extra time. Reason: "${v.extension_request.reason || 'Extra driving practice'}"`,
@@ -199,7 +200,7 @@ export class InstructorReportsComponent implements OnInit, OnDestroy {
 
       if (isParked) {
         logs.push({
-          id: `parked-${v._id}`,
+          id: `parked-${vehicleId}`,
           timestamp: v.parked_at ? new Date(v.parked_at) : new Date(),
           title: `Vehicle Safely Parked & Session Concluded`,
           description: `You reported ${v.model} (${v.registration_number}) parked at driving school grounds.`,
@@ -212,9 +213,11 @@ export class InstructorReportsComponent implements OnInit, OnDestroy {
 
     // Complaints in activity logs
     this.myComplaints.forEach((c: Complaint) => {
+      const compId = this.getEntityId(c) || Math.random().toString();
+      const dateVal = c.createdAt || c.created_at;
       logs.push({
-        id: `comp-${c._id || c.id}`,
-        timestamp: c.createdAt ? new Date(c.createdAt) : new Date(),
+        id: `comp-${compId}`,
+        timestamp: dateVal ? new Date(dateVal) : new Date(),
         title: `Complaint Submitted: ${c.title || 'Vehicle Report'}`,
         description: `${c.description || 'Issue submitted to school administration.'}`,
         type: 'complaint',

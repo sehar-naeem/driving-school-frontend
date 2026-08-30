@@ -185,6 +185,15 @@ export class WebSocketService {
     });
   }
 
+  // Listen for instructor on way / lesson started updates
+  onInstructorOnWay(): Observable<any> {
+    return new Observable(observer => {
+      this.socket?.on('instructor:on_way', (data: any) => {
+        observer.next(data);
+      });
+    });
+  }
+
   // Listen for vehicle parked reports
   onVehicleParked(): Observable<any> {
     return new Observable(observer => {
@@ -199,6 +208,11 @@ export class WebSocketService {
   // Emit location update (from instructor app)
   emitLocationUpdate(data: { vehicle_id: string; latitude: number; longitude: number }): void {
     this.socket?.emit('location:update', data);
+  }
+
+  // Emit instructor on way
+  emitInstructorOnWay(data: any): void {
+    this.socket?.emit('instructor:on_way', data);
   }
 
   // Emit instructor arrival

@@ -21,6 +21,8 @@ export interface Vehicle {
   last_location_update?: Date;
   is_parked?: boolean;
   parked_at?: Date | null;
+  instructor_status?: 'assigned' | 'on_way' | 'in_lesson' | 'parked' | null;
+  instructor_acknowledged_at?: Date | null;
   extension_request?: {
     minutes?: number;
     reason?: string;

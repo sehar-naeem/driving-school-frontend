@@ -28,9 +28,15 @@
             <small class="text-primary d-block mt-1">
               <i class="bi bi-person-fill me-1"></i>{{ vehicle.current_instructor?.full_name || 'Assigned Instructor' }}
             </small>
-            <div class="mt-2">
+            <div class="mt-2 d-flex flex-wrap gap-1">
               <span class="badge" [class.bg-warning]="!vehicle.is_parked" [class.text-dark]="!vehicle.is_parked" [class.bg-info]="vehicle.is_parked">
-                {{ vehicle.is_parked ? '🅿️ Parked & Finished' : '🚗 In Use (On Road)' }}
+                {{ vehicle.is_parked ? '🅿️ Parked & Finished' : '🚗 In Use' }}
+              </span>
+              <span *ngIf="vehicle.instructor_status === 'on_way' || vehicle.instructor_status === 'in_lesson'" class="badge bg-success">
+                🚀 On The Way
+              </span>
+              <span *ngIf="vehicle.instructor_status === 'assigned'" class="badge bg-secondary">
+                ⏳ Assigned
               </span>
             </div>
             <!-- Coordinates box -->

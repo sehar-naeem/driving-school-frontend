@@ -143,6 +143,14 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     });
     this.wsSubscriptions.push(extReqSub);
 
+    // Listen for instructor on way updates
+    const onWaySub = this.wsService.onInstructorOnWay().subscribe((data: any) => {
+      console.log('🚀 Instructor on way:', data);
+      this.showNotification(`🚀 Instructor ${data.instructor} acknowledged allocation and is on the way with ${data.registration_number}!`, 'success');
+      this.loadVehicles();
+    });
+    this.wsSubscriptions.push(onWaySub);
+
     // Listen for parked vehicle reports
     const parkedSub = this.wsService.onVehicleParked().subscribe((data: any) => {
       console.log('🅿️ Vehicle reported parked:', data);

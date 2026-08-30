@@ -103,6 +103,12 @@ export class VehicleService {
     );
   }
 
+  acknowledgeAllocation(vehicleId: string, data: { status?: string; latitude?: number; longitude?: number }): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/${vehicleId}/acknowledge-allocation`, data).pipe(
+      tap(() => this.loadVehicles())
+    );
+  }
+
   requestExtension(vehicleId: string, data: { minutes: number; reason?: string; latitude?: number; longitude?: number }): Observable<any> {
     return this.http.post<any>(`${this.API_URL}/${vehicleId}/request-extension`, data).pipe(
       tap(() => this.loadVehicles())

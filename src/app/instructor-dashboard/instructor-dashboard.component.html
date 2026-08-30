@@ -64,12 +64,17 @@
         <i class="bi bi-car-front me-2"></i>
         Current Vehicle Allocation
       </h2>
-      <span *ngIf="extensionPending" class="badge bg-warning text-dark py-2 px-3">
-        <i class="bi bi-hourglass-split me-1"></i>Extension Request Pending Admin Approval
-      </span>
-      <span *ngIf="isCarReportedParked" class="badge bg-info py-2 px-3 text-dark">
-        <i class="bi bi-p-circle-fill me-1"></i>Vehicle Parked & Reported
-      </span>
+      <div class="d-flex gap-2">
+        <span *ngIf="currentVehicle.instructor_status === 'on_way' || currentVehicle.instructor_status === 'in_lesson'" class="badge bg-success py-2 px-3">
+          <i class="bi bi-geo-alt-fill me-1"></i>On My Way / Lesson Active
+        </span>
+        <span *ngIf="extensionPending" class="badge bg-warning text-dark py-2 px-3">
+          <i class="bi bi-hourglass-split me-1"></i>Extension Request Pending Admin Approval
+        </span>
+        <span *ngIf="isCarReportedParked" class="badge bg-info py-2 px-3 text-dark">
+          <i class="bi bi-p-circle-fill me-1"></i>Vehicle Parked & Reported
+        </span>
+      </div>
     </div>
 
     <div class="allocation-card">
@@ -95,9 +100,11 @@
             <span class="detail-value time-remaining fw-bold text-danger">{{ getRemainingTime() }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Status</span>
-            <span class="badge-active" *ngIf="!isCarReportedParked">Active Ride</span>
-            <span class="badge bg-info text-dark" *ngIf="isCarReportedParked">Parked</span>
+            <span class="detail-label">Ride Status</span>
+            <span class="badge-active" *ngIf="!isCarReportedParked">
+              {{ currentVehicle.instructor_status === 'on_way' ? '🚗 On The Road' : 'Active Session' }}
+            </span>
+            <span class="badge bg-info text-dark" *ngIf="isCarReportedParked">🅿️ Parked</span>
           </div>
         </div>
 
@@ -153,7 +160,7 @@
       <i class="bi bi-info-circle"></i>
     </div>
     <h3>No Vehicle Allocated</h3>
-    <p>You don't have any vehicle allocation at the moment. Please contact admin for today's schedule.</p>
+    <p>You don't have any vehicle allocation at the moment. When the admin assigns you a vehicle, you will receive an instant notification here!</p>
   </div>
 
   <!-- Recent Complaints -->
@@ -196,6 +203,48 @@
   </div>
 
   <!-- ==================== POPUPS & MODALS ==================== -->
+
+  <!-- 🚗 NEW ALLOCATION MODAL (For Instructor) -->
+  <div class="modal fade" [class.show]="showNewAllocationModal" [style.display]="showNewAllocationModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-success shadow-lg">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-car-front-fill me-2"></i>🚗 New Vehicle Allocated to You!
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="dismissNewAllocationModal()"></button>
+        </div>
+        <div class="modal-body" *ngIf="currentVehicle">
+          <div class="d-flex align-items-center mb-3">
+            <div class="rounded-circle bg-success bg-opacity-25 p-3 me-3 text-success">
+              <i class="bi bi-key-fill fs-2"></i>
+            </div>
+            <div>
+              <h4 class="mb-1 fw-bold text-dark">{{ currentVehicle.model }}</h4>
+              <p class="text-muted mb-0">Reg Number: <strong class="font-monospace text-dark">{{ currentVehicle.registration_number }}</strong></p>
+            </div>
+          </div>
+
+          <div class="alert alert-success py-2">
+            <i class="bi bi-clock-fill me-1"></i>
+            <strong>Session Duration:</strong> {{ currentVehicle.time_slot }} minutes
+          </div>
+
+          <p class="small text-muted mb-0">
+            Please acknowledge this allocation to confirm you are on your way to start the lesson with the student.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" (click)="dismissNewAllocationModal()">
+            Later
+          </button>
+          <button type="button" class="btn btn-success fw-bold px-4" (click)="acknowledgeAndStartLesson()">
+            <i class="bi bi-send-check-fill me-1"></i>Okay, I am on my way / Start Lesson
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ⚠️ 5-Minute Warning Modal for Instructor -->
   <div class="modal fade" [class.show]="showWarningModal" [style.display]="showWarningModal ? 'block' : 'none'" tabindex="-1">
@@ -378,6 +427,6 @@
 
   <!-- Modal Backdrop -->
   <div class="modal-backdrop fade" 
-       [class.show]="showWarningModal || showExpiredModal || showExtensionModal || showParkedModal" 
-       *ngIf="showWarningModal || showExpiredModal || showExtensionModal || showParkedModal"></div>
+       [class.show]="showNewAllocationModal || showWarningModal || showExpiredModal || showExtensionModal || showParkedModal" 
+       *ngIf="showNewAllocationModal || showWarningModal || showExpiredModal || showExtensionModal || showParkedModal"></div>
 </div>

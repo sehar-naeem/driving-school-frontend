@@ -46,6 +46,10 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   gpsError: string = '';
   lastGpsUpdate: Date | null = null;
 
+  // New Allocation Modal / Notification for Instructor
+  showNewAllocationModal: boolean = false;
+  hasDismissedNewAllocation: boolean = false;
+
   // Popups and Modals for Instructor
   showWarningModal: boolean = false;
   warningModalDismissed: boolean = false;
@@ -82,8 +86,8 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     this.loadDashboardData();
     this.setupWebSocketListeners();
 
-    // Check timer every 2 seconds for popups
-    this.timerInterval = interval(2000).subscribe(() => {
+    // Check timer every second for accurate countdown & popups
+    this.timerInterval = interval(1000).subscribe(() => {
       this.checkSessionTimers();
     });
   }
@@ -96,16 +100,22 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     this.wsSubscriptions.forEach(sub => sub.unsubscribe());
   }
 
+  private getEntityId(entity: any): string {
+    if (!entity) return '';
+    if (typeof entity === 'string') return entity;
+    return (entity._id || entity.id || '').toString();
+  }
+
   loadDashboardData(): void {
     if (!this.currentUser) return;
+    const currentInstructorId = this.getEntityId(this.currentUser);
 
-    // Load current vehicle allocation
+    // Load current vehicle allocation with robust ID matching
     this.vehicleService.getAllVehicles().subscribe(vehicles => {
       this.currentVehicle = vehicles.find(v => {
-        const instId = v.current_instructor_id?.toString() || 
-                       (v.current_instructor as any)?._id?.toString() || 
-                       (v.current_instructor as any)?.id?.toString();
-        return instId === this.currentUser!.id && v.status === 'busy';
+        if (v.status !== 'busy') return false;
+        const vInstId = this.getEntityId(v.current_instructor_id) || this.getEntityId(v.current_instructor);
+        return vInstId && currentInstructorId && vInstId === currentInstructorId;
       }) || null;
 
       this.stats.currentlyAllocated = !!this.currentVehicle;
@@ -120,6 +130,11 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
         }
         if (this.currentVehicle.extension_request?.status === 'pending') {
           this.extensionPending = true;
+        }
+
+        // If allocated and not yet acknowledged, show the new allocation popup
+        if ((!this.currentVehicle.instructor_status || this.currentVehicle.instructor_status === 'assigned') && !this.hasDismissedNewAllocation) {
+          this.showNewAllocationModal = true;
         }
       }
     });
@@ -136,14 +151,26 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   private setupWebSocketListeners(): void {
     this.wsService.connect();
 
+    // Listen for live vehicle allocation events from Admin
+    const allocSub = this.wsService.onAllocationCreated().subscribe((data: any) => {
+      const currentInstructorId = this.getEntityId(this.currentUser);
+      const targetInstId = this.getEntityId(data?.instructor_id) || this.getEntityId(data?.vehicle?.current_instructor_id);
+      if (targetInstId && currentInstructorId && targetInstId === currentInstructorId) {
+        this.showNewAllocationModal = true;
+        this.hasDismissedNewAllocation = false;
+        this.loadDashboardData();
+      }
+    });
+    this.wsSubscriptions.push(allocSub);
+
     // Listen for extension response from Admin
     const extRespSub = this.wsService.onExtensionResponded().subscribe((data: any) => {
-      const vehicleId = (this.currentVehicle?._id || this.currentVehicle?.id)?.toString();
+      const vehicleId = this.getEntityId(this.currentVehicle);
       if (vehicleId && data.vehicle_id?.toString() === vehicleId) {
         this.extensionPending = false;
         if (data.approved) {
           this.extensionMessage = `🎉 Admin approved your extension (+${data.additional_minutes} mins)!`;
-          this.warningModalDismissed = false; // allow next warning
+          this.warningModalDismissed = false;
           this.expiredModalDismissed = false;
           this.showExpiredModal = false;
           this.loadDashboardData();
@@ -174,15 +201,18 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     }
 
     const remainingSec = this.getRemainingSeconds();
-    if (remainingSec <= 0) return 'Expired';
+    if (remainingSec <= 0) return 'Expired (00:00)';
 
     const hours = Math.floor(remainingSec / 3600);
     const minutes = Math.floor((remainingSec % 3600) / 60);
     const seconds = remainingSec % 60;
 
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    if (minutes > 0) return `${minutes}m ${seconds}s`;
-    return `${seconds}s`;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+
+    if (hours > 0) {
+      return `${hours}h ${pad(minutes)}m ${pad(seconds)}s`;
+    }
+    return `${pad(minutes)}m ${pad(seconds)}s`;
   }
 
   /**
@@ -208,6 +238,46 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
       this.showWarningModal = false;
       this.showExpiredModal = true;
     }
+  }
+
+  // ===== INSTRUCTOR ALLOCATION ACKNOWLEDGMENT =====
+  acknowledgeAndStartLesson(): void {
+    if (!this.currentVehicle) return;
+    const vehicleId = this.getEntityId(this.currentVehicle);
+    if (!vehicleId) return;
+
+    this.vehicleService.acknowledgeAllocation(vehicleId, {
+      status: 'on_way',
+      latitude: this.gpsLatitude || undefined,
+      longitude: this.gpsLongitude || undefined
+    }).subscribe({
+      next: () => {
+        this.showNewAllocationModal = false;
+        this.hasDismissedNewAllocation = true;
+        if (this.currentVehicle) {
+          this.currentVehicle.instructor_status = 'on_way';
+        }
+        // Start GPS sharing automatically
+        this.startGpsSharing();
+        this.wsService.emitInstructorOnWay({
+          vehicle_id: vehicleId,
+          registration_number: this.currentVehicle!.registration_number,
+          instructor: this.currentUser?.full_name,
+          latitude: this.gpsLatitude,
+          longitude: this.gpsLongitude
+        });
+        alert(`🚀 Confirmed! Admin notified that you are on your way with ${this.currentVehicle!.model} (${this.currentVehicle!.registration_number}). Live GPS tracking started!`);
+      },
+      error: (err) => {
+        console.error('Error acknowledging allocation:', err);
+        this.showNewAllocationModal = false;
+      }
+    });
+  }
+
+  dismissNewAllocationModal(): void {
+    this.showNewAllocationModal = false;
+    this.hasDismissedNewAllocation = true;
   }
 
   dismissWarningModal(): void {
@@ -245,7 +315,7 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
 
     const options: PositionOptions = {
       enableHighAccuracy: true,
-      maximumAge: 4000,
+      maximumAge: 3000,
       timeout: 10000
     };
 
@@ -274,7 +344,7 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
 
     if (!this.currentVehicle) return;
 
-    const vehicleId = (this.currentVehicle._id || this.currentVehicle.id)?.toString();
+    const vehicleId = this.getEntityId(this.currentVehicle);
     if (!vehicleId) return;
 
     // 1. Emit live WebSocket location update for real-time admin map
@@ -314,7 +384,7 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   submitExtensionRequest(): void {
     if (!this.currentVehicle) return;
 
-    const vehicleId = (this.currentVehicle._id || this.currentVehicle.id)?.toString();
+    const vehicleId = this.getEntityId(this.currentVehicle);
     if (!vehicleId) return;
 
     this.extensionLoading = true;
@@ -328,7 +398,7 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     };
 
     this.vehicleService.requestExtension(vehicleId, payload).subscribe({
-      next: (res) => {
+      next: () => {
         this.extensionLoading = false;
         this.extensionPending = true;
         this.extensionMessage = '✅ Extension request submitted! Waiting for Admin live approval...';
@@ -364,7 +434,7 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   submitParkedReport(): void {
     if (!this.currentVehicle) return;
 
-    const vehicleId = (this.currentVehicle._id || this.currentVehicle.id)?.toString();
+    const vehicleId = this.getEntityId(this.currentVehicle);
     if (!vehicleId) return;
 
     this.parkedLoading = true;

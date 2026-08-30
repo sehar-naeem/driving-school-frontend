@@ -16,3 +16,81 @@
 </div>
 
 <router-outlet *ngIf="!showLayout"></router-outlet>
+
+<!-- 🔔 GLOBAL ADMIN LIVE EXTENSION REQUEST MODAL (Works across ALL admin pages) -->
+<div class="modal fade" [class.show]="showGlobalExtensionModal" [style.display]="showGlobalExtensionModal ? 'block' : 'none'" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-primary shadow-lg">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title fw-bold">
+          <i class="bi bi-broadcast me-2"></i>Live Time Extension Request from Instructor
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="closeGlobalExtensionModal()"></button>
+      </div>
+      <div class="modal-body" *ngIf="globalExtensionRequest">
+        <div class="d-flex align-items-center mb-3">
+          <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3 text-primary">
+            <i class="bi bi-person-badge-fill fs-2"></i>
+          </div>
+          <div>
+            <h5 class="mb-1 fw-bold text-dark">{{ globalExtensionRequest.instructor }}</h5>
+            <p class="text-muted mb-0">Vehicle: <strong>{{ globalExtensionRequest.model }} ({{ globalExtensionRequest.registration_number }})</strong></p>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="small text-muted fw-bold">Instructor's Reason:</label>
+          <div class="p-2 bg-light border rounded text-dark">
+            {{ globalExtensionRequest.reason || 'Instructor requested extra time for session' }}
+          </div>
+        </div>
+
+        <div *ngIf="globalExtensionRequest.latitude && globalExtensionRequest.longitude" class="alert alert-info py-2 small mb-3">
+          <i class="bi bi-geo-alt-fill text-danger me-1"></i>Current Location: 
+          <span class="font-monospace fw-bold">{{ globalExtensionRequest.latitude | number:'1.4-4' }}, {{ globalExtensionRequest.longitude | number:'1.4-4' }}</span>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Adjust Extra Minutes to Grant:</label>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary flex-fill" 
+                    [class.active]="adminReplyMinutes === 5" (click)="adminReplyMinutes = 5">
+              +5m
+            </button>
+            <button type="button" class="btn btn-outline-primary flex-fill" 
+                    [class.active]="adminReplyMinutes === 10" (click)="adminReplyMinutes = 10">
+              +10m
+            </button>
+            <button type="button" class="btn btn-outline-primary flex-fill" 
+                    [class.active]="adminReplyMinutes === 15" (click)="adminReplyMinutes = 15">
+              +15m
+            </button>
+            <button type="button" class="btn btn-outline-primary flex-fill" 
+                    [class.active]="adminReplyMinutes === 30" (click)="adminReplyMinutes = 30">
+              +30m
+            </button>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Admin Message / Note to Instructor:</label>
+          <textarea class="form-control" rows="2" [(ngModel)]="adminReplyMessage"
+                    placeholder="e.g. Approved. Please wrap up the lesson and come back as early as you can."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger" [disabled]="adminResponding" (click)="declineGlobalExtension()">
+          <i class="bi bi-x-circle me-1"></i>Decline with Note
+        </button>
+        <button type="button" class="btn btn-success fw-bold" [disabled]="adminResponding" (click)="approveGlobalExtension()">
+          <i class="bi bi-check-circle-fill me-1" *ngIf="!adminResponding"></i>
+          <span class="spinner-border spinner-border-sm me-1" *ngIf="adminResponding"></span>
+          Approve & Send Note (+{{ adminReplyMinutes }}m)
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Backdrop -->
+<div class="modal-backdrop fade" [class.show]="showGlobalExtensionModal" *ngIf="showGlobalExtensionModal"></div>

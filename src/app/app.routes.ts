@@ -74,6 +74,12 @@ export const routes: Routes = [
         path: 'tracking-map',
         redirectTo: 'tracking',
         pathMatch: 'full'
+      },
+      // Admin Reports & Activity Logs
+      {
+        path: 'reports',
+        loadComponent: () => import('./admin-reports/admin-reports.component')
+          .then(m => m.AdminReportsComponent)
       }
     ]
   },

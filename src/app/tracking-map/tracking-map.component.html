@@ -31,18 +31,18 @@
 
             <div class="mt-2 d-flex flex-wrap gap-1">
               <span class="badge" [class.bg-warning]="!vehicle.is_parked" [class.text-dark]="!vehicle.is_parked" [class.bg-info]="vehicle.is_parked">
-                {{ vehicle.is_parked ? '🅿️ Parked & Finished' : '🚗 In Use' }}
+                {{ vehicle.is_parked ? '🅿️ Parked & Completed' : '🚗 In Use' }}
               </span>
-              <span *ngIf="vehicle.instructor_status === 'on_way' || vehicle.instructor_status === 'in_lesson'" class="badge bg-success">
+              <span *ngIf="!vehicle.is_parked && (vehicle.instructor_status === 'on_way' || vehicle.instructor_status === 'in_lesson')" class="badge bg-success">
                 🚀 On The Way
               </span>
-              <span *ngIf="vehicle.instructor_status === 'assigned'" class="badge bg-secondary">
+              <span *ngIf="!vehicle.is_parked && vehicle.instructor_status === 'assigned'" class="badge bg-secondary">
                 ⏳ Assigned
               </span>
             </div>
 
-            <!-- Pending Extension Alert on Card -->
-            <div *ngIf="vehicle.extension_request?.status === 'pending'" class="mt-2 p-2 bg-warning bg-opacity-25 border border-warning rounded">
+            <!-- Pending Extension Alert on Card (Only active when NOT parked) -->
+            <div *ngIf="!vehicle.is_parked && vehicle.extension_request?.status === 'pending'" class="mt-2 p-2 bg-warning bg-opacity-25 border border-warning rounded">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <small class="fw-bold text-dark">
                   <i class="bi bi-clock-history text-danger me-1"></i>Extension Requested:

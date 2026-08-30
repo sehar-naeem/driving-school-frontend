@@ -8,11 +8,11 @@
       <p class="welcome-subtitle">Here's your active vehicle schedule and live controls</p>
     </div>
     <div class="quick-actions d-flex gap-2">
-      <button *ngIf="currentVehicle" class="btn btn-outline-primary" (click)="openExtensionModal()">
+      <button *ngIf="currentVehicle && !isCarReportedParked" class="btn btn-outline-primary" (click)="openExtensionModal()">
         <i class="bi bi-clock-history me-1"></i>
         <span>Request Extension</span>
       </button>
-      <button *ngIf="currentVehicle" class="btn btn-outline-success" (click)="openParkedModal()">
+      <button *ngIf="currentVehicle && !isCarReportedParked" class="btn btn-outline-success" (click)="openParkedModal()">
         <i class="bi bi-p-circle me-1"></i>
         <span>Report Parked</span>
       </button>
@@ -140,13 +140,17 @@
                 {{ isSharingGps ? 'Stop GPS Broadcast' : 'Start GPS Broadcast' }}
               </button>
 
-              <button type="button" class="btn btn-outline-warning text-dark fw-bold" (click)="openExtensionModal()">
+              <button *ngIf="!isCarReportedParked" type="button" class="btn btn-outline-warning text-dark fw-bold" (click)="openExtensionModal()">
                 <i class="bi bi-clock-history me-1"></i>Extend Time
               </button>
 
-              <button type="button" class="btn btn-outline-info text-dark fw-bold" (click)="openParkedModal()">
+              <button *ngIf="!isCarReportedParked" type="button" class="btn btn-outline-info text-dark fw-bold" (click)="openParkedModal()">
                 <i class="bi bi-p-circle-fill me-1"></i>Report Parked
               </button>
+
+              <span *ngIf="isCarReportedParked" class="badge bg-success py-2 px-3 fs-6 d-flex align-items-center">
+                <i class="bi bi-check-circle-fill me-1"></i>Session Completed & Parked
+              </span>
             </div>
           </div>
         </div>

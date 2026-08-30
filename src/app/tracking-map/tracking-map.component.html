@@ -41,8 +41,8 @@
               </span>
             </div>
 
-            <!-- Pending Extension Alert on Card (Only active when NOT parked) -->
-            <div *ngIf="!vehicle.is_parked && vehicle.extension_request?.status === 'pending'" class="mt-2 p-2 bg-warning bg-opacity-25 border border-warning rounded">
+            <!-- Pending Extension Alert on Card (Only active for Admin when NOT parked) -->
+            <div *ngIf="authService.isAdmin() && !vehicle.is_parked && vehicle.extension_request?.status === 'pending'" class="mt-2 p-2 bg-warning bg-opacity-25 border border-warning rounded">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <small class="fw-bold text-dark">
                   <i class="bi bi-clock-history text-danger me-1"></i>Extension Requested:

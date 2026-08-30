@@ -29,6 +29,7 @@ export class SidebarComponent implements OnInit {
 
   instructorMenuItems = [
     { icon: 'bi-speedometer2', label: 'Dashboard', route: '/instructor/dashboard', badge: null },
+    { icon: 'bi-bar-chart-line-fill', label: 'My Session Reports', route: '/instructor/reports', badge: null },
     { icon: 'bi-exclamation-circle-fill', label: 'File Complaint', route: '/instructor/file-complaint', badge: null },
     { icon: 'bi-list-check', label: 'My Complaints', route: '/instructor/my-complaints', badge: null }
   ];

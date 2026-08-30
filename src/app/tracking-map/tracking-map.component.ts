@@ -37,7 +37,8 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private vehicleService: VehicleService,
     private wsService: WebSocketService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    public authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -344,14 +345,16 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       });
       this.subscriptions.push(parkedSub);
 
-      // 🔔 Subscribe to live extension requests from instructors
+      // 🔔 Subscribe to live extension requests from instructors (Admins only)
       const extSub = this.wsService.onExtensionRequested().subscribe({
         next: (data: any) => {
-          console.log('🔔 Live extension requested on map:', data);
-          this.activeExtensionRequest = data;
-          this.adminReplyMinutes = Number(data.minutes) || 15;
-          this.adminReplyMessage = 'Approved. Please complete the ride and return to school safely as early as you can.';
-          this.showExtensionModal = true;
+          if (this.authService.isAdmin()) {
+            console.log('🔔 Live extension requested on map (Admin):', data);
+            this.activeExtensionRequest = data;
+            this.adminReplyMinutes = Number(data.minutes) || 15;
+            this.adminReplyMessage = 'Approved. Please complete the ride and return to school safely as early as you can.';
+            this.showExtensionModal = true;
+          }
           this.loadVehicles();
         }
       });
@@ -399,6 +402,11 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ===== ADMIN EXTENSION MODAL ACTIONS =====
   openReviewExtensionModal(vehicle: Vehicle): void {
+    if (!this.authService.isAdmin()) {
+      alert('Only administrators can review and respond to extension requests.');
+      return;
+    }
+
     const vehicleId = (vehicle.id || vehicle._id)?.toString();
     this.activeExtensionRequest = {
       vehicle_id: vehicleId,

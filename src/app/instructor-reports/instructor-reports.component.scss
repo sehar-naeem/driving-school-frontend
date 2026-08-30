@@ -1,0 +1,43 @@
+.instructor-reports-container {
+  padding: 1.5rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+
+  .kpi-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 12px;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06) !important;
+    }
+  }
+
+  .timeline {
+    position: relative;
+
+    .timeline-item {
+      &:last-child {
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+      }
+    }
+  }
+
+  @media print {
+    padding: 0;
+    background: white;
+
+    .btn,
+    .page-header button,
+    .card-header .badge {
+      display: none !important;
+    }
+
+    .card {
+      box-shadow: none !important;
+      border: 1px solid #ddd !important;
+    }
+  }
+}

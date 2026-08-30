@@ -196,6 +196,10 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     return Math.max(0, Math.floor(remainingMs / 1000));
   }
 
+  get isExtensionPending(): boolean {
+    return this.extensionPending || (this.currentVehicle?.extension_request?.status === 'pending');
+  }
+
   getRemainingTime(): string {
     if (!this.currentVehicle?.session_start || !this.currentVehicle?.time_slot) {
       return 'N/A';

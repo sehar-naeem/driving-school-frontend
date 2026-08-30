@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { VehicleService } from '../services/vehicle.service';
 import { WebSocketService } from '../services/websocket.service';
+import { AuthService } from '../services/auth.service';
 import { Vehicle } from '../models/vehicle.model';
 import { Subscription } from 'rxjs';
 

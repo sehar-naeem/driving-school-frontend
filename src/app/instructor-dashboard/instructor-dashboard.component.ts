@@ -385,6 +385,11 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   submitExtensionRequest(): void {
     if (!this.currentVehicle) return;
 
+    if (this.extensionPending || this.currentVehicle.extension_request?.status === 'pending') {
+      alert('An extension request is already submitted and awaiting Admin approval.');
+      return;
+    }
+
     const vehicleId = this.getEntityId(this.currentVehicle);
     if (!vehicleId) return;
 
@@ -402,19 +407,27 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
       next: () => {
         this.extensionLoading = false;
         this.extensionPending = true;
+        if (this.currentVehicle) {
+          this.currentVehicle.extension_request = {
+            minutes: Number(this.extensionMinutes),
+            reason: this.extensionReason,
+            requested_at: new Date(),
+            status: 'pending'
+          };
+        }
         this.extensionMessage = '✅ Extension request submitted! Waiting for Admin live approval...';
         this.wsService.emitExtensionRequest({
           vehicle_id: vehicleId,
           registration_number: this.currentVehicle!.registration_number,
+          model: this.currentVehicle!.model,
           instructor: this.currentUser?.full_name,
           minutes: this.extensionMinutes,
           reason: this.extensionReason,
           latitude: this.gpsLatitude,
           longitude: this.gpsLongitude
         });
-        setTimeout(() => this.closeExtensionModal(), 2000);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.extensionLoading = false;
         this.extensionMessage = '❌ Error submitting request: ' + (err.error?.message || 'Server error');
       }

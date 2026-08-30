@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 
 @Injectable({
@@ -9,20 +9,41 @@ export class WebSocketService {
   private socket?: Socket;
   private readonly SERVER_URL = 'https://driving-school-backend-m80e.onrender.com';
 
-  constructor() {}
+  // Centralized RxJS Subjects for resilient event streaming
+  private locationUpdateSubject = new Subject<any>();
+  private vehicleUpdateSubject = new Subject<any>();
+  private allocationUpdateSubject = new Subject<any>();
+  private allocationCreatedSubject = new Subject<any>();
+  private allocationCompletedSubject = new Subject<any>();
+  private instructorArrivalSubject = new Subject<any>();
+  private timeWarningSubject = new Subject<any>();
+  private delayWarningSubject = new Subject<any>();
+  private adminNotificationSubject = new Subject<any>();
+  private instructorNotificationSubject = new Subject<any>();
+  private complaintUpdateSubject = new Subject<any>();
+  private complaintCreatedSubject = new Subject<any>();
+  private complaintStatusChangedSubject = new Subject<any>();
+  private extensionRequestedSubject = new Subject<any>();
+  private extensionRespondedSubject = new Subject<any>();
+  private instructorOnWaySubject = new Subject<any>();
+  private vehicleParkedSubject = new Subject<any>();
 
-  // Connect to WebSocket server
+  constructor() {
+    this.connect();
+  }
+
+  // Connect to WebSocket server and register all listeners
   connect(): void {
     if (!this.socket || !this.socket.connected) {
       this.socket = io(this.SERVER_URL, {
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionDelay: 1000,
-        reconnectionAttempts: 5
+        reconnectionAttempts: 10
       });
 
       this.socket.on('connect', () => {
-        console.log('✅ WebSocket connected');
+        console.log('✅ WebSocket connected to server:', this.SERVER_URL);
       });
 
       this.socket.on('disconnect', () => {
@@ -32,6 +53,42 @@ export class WebSocketService {
       this.socket.on('error', (error: any) => {
         console.error('WebSocket error:', error);
       });
+
+      // Stream events into Subjects
+      this.socket.on('location:updated', (data: any) => this.locationUpdateSubject.next(data));
+      this.socket.on('location:update', (data: any) => this.locationUpdateSubject.next(data));
+      this.socket.on('vehicle:updated', (data: any) => this.vehicleUpdateSubject.next(data));
+      this.socket.on('allocation:updated', (data: any) => this.allocationUpdateSubject.next(data));
+      this.socket.on('allocation:created', (data: any) => this.allocationCreatedSubject.next(data));
+      this.socket.on('allocation:completed', (data: any) => this.allocationCompletedSubject.next(data));
+      this.socket.on('instructor:arrived', (data: any) => this.instructorArrivalSubject.next(data));
+      this.socket.on('time:warning', (data: any) => this.timeWarningSubject.next(data));
+      this.socket.on('delay:warning', (data: any) => this.delayWarningSubject.next(data));
+      this.socket.on('admin:notification', (data: any) => this.adminNotificationSubject.next(data));
+      this.socket.on('instructor:notification', (data: any) => this.instructorNotificationSubject.next(data));
+      this.socket.on('complaint:updated', (data: any) => this.complaintUpdateSubject.next(data));
+      this.socket.on('complaint:created', (data: any) => this.complaintCreatedSubject.next(data));
+      this.socket.on('complaint:status-changed', (data: any) => this.complaintStatusChangedSubject.next(data));
+      
+      // Extension & Parking
+      this.socket.on('extension:requested', (data: any) => {
+        console.log('⚡ Socket event received: extension:requested', data);
+        this.extensionRequestedSubject.next(data);
+      });
+      this.socket.on('extension:request', (data: any) => {
+        console.log('⚡ Socket event received: extension:request', data);
+        this.extensionRequestedSubject.next(data);
+      });
+      this.socket.on('extension:responded', (data: any) => {
+        console.log('⚡ Socket event received: extension:responded', data);
+        this.extensionRespondedSubject.next(data);
+      });
+      this.socket.on('extension:respond', (data: any) => {
+        console.log('⚡ Socket event received: extension:respond', data);
+        this.extensionRespondedSubject.next(data);
+      });
+      this.socket.on('instructor:on_way', (data: any) => this.instructorOnWaySubject.next(data));
+      this.socket.on('vehicle:parked', (data: any) => this.vehicleParkedSubject.next(data));
     }
   }
 
@@ -42,201 +99,111 @@ export class WebSocketService {
     }
   }
 
-  // ========== VEHICLE EVENTS ==========
-
-  // Listen for vehicle location updates
+  // ========== VEHICLE OBSERVABLES ==========
   onLocationUpdate(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('location:updated', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.locationUpdateSubject.asObservable();
   }
 
-  // Listen for vehicle updates
   onVehicleUpdate(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('vehicle:updated', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.vehicleUpdateSubject.asObservable();
   }
 
-  // ========== ALLOCATION EVENTS ==========
-
-  // Listen for allocation updates
+  // ========== ALLOCATION OBSERVABLES ==========
   onAllocationUpdate(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('allocation:updated', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.allocationUpdateSubject.asObservable();
   }
 
-  // Listen for new allocations
   onAllocationCreated(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('allocation:created', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.allocationCreatedSubject.asObservable();
   }
 
-  // Listen for allocation completion
   onAllocationCompleted(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('allocation:completed', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.allocationCompletedSubject.asObservable();
   }
 
-  // Listen for instructor arrival
   onInstructorArrival(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('instructor:arrived', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.instructorArrivalSubject.asObservable();
   }
 
-  // Listen for time warnings (10 min, 5 min, etc.)
   onTimeWarning(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('time:warning', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.timeWarningSubject.asObservable();
   }
 
-  // Listen for delay warnings
   onDelayWarning(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('delay:warning', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.delayWarningSubject.asObservable();
   }
 
-  // Listen for admin notifications
   onAdminNotification(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('admin:notification', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.adminNotificationSubject.asObservable();
   }
 
-  // Listen for instructor notifications
   onInstructorNotification(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('instructor:notification', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.instructorNotificationSubject.asObservable();
   }
 
-  // ========== COMPLAINT EVENTS ==========
-
-  // Listen for complaint updates
+  // ========== COMPLAINT OBSERVABLES ==========
   onComplaintUpdate(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('complaint:updated', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.complaintUpdateSubject.asObservable();
   }
 
-  // Listen for new complaints
   onComplaintCreated(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('complaint:created', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.complaintCreatedSubject.asObservable();
   }
 
-  // Listen for complaint status changes
   onComplaintStatusChanged(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('complaint:status-changed', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.complaintStatusChangedSubject.asObservable();
   }
 
-  // ========== EXTENSION & PARKING EVENTS ==========
-
-  // Listen for extension requests from instructors
+  // ========== EXTENSION & PARKING OBSERVABLES ==========
   onExtensionRequested(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('extension:requested', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.extensionRequestedSubject.asObservable();
   }
 
-  // Listen for extension response from admin
   onExtensionResponded(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('extension:responded', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.extensionRespondedSubject.asObservable();
   }
 
-  // Listen for instructor on way / lesson started updates
   onInstructorOnWay(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('instructor:on_way', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.instructorOnWaySubject.asObservable();
   }
 
-  // Listen for vehicle parked reports
   onVehicleParked(): Observable<any> {
-    return new Observable(observer => {
-      this.socket?.on('vehicle:parked', (data: any) => {
-        observer.next(data);
-      });
-    });
+    return this.vehicleParkedSubject.asObservable();
   }
 
-  // ========== EMIT EVENTS ==========
-
-  // Emit location update (from instructor app)
+  // ========== EMITTERS ==========
   emitLocationUpdate(data: { vehicle_id: string; latitude: number; longitude: number }): void {
+    this.connect();
     this.socket?.emit('location:update', data);
   }
 
-  // Emit instructor on way
   emitInstructorOnWay(data: any): void {
+    this.connect();
     this.socket?.emit('instructor:on_way', data);
   }
 
-  // Emit instructor arrival
   emitInstructorArrival(allocationId: string): void {
+    this.connect();
     this.socket?.emit('instructor:arrival', { allocation_id: allocationId });
   }
 
-  // Emit notification acknowledgment
   emitNotificationAck(notificationId: string): void {
+    this.connect();
     this.socket?.emit('notification:acknowledged', { notification_id: notificationId });
   }
 
-  // Emit extension request from instructor
   emitExtensionRequest(data: any): void {
+    this.connect();
     this.socket?.emit('extension:request', data);
   }
 
-  // Emit extension response from admin
   emitExtensionResponse(data: any): void {
+    this.connect();
     this.socket?.emit('extension:respond', data);
   }
 
-  // Emit vehicle parked report
   emitVehicleParked(data: any): void {
+    this.connect();
     this.socket?.emit('vehicle:park', data);
   }
 }

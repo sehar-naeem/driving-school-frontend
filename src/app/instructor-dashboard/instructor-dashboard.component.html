@@ -341,45 +341,67 @@
           <button type="button" class="btn-close btn-close-white" (click)="closeExtensionModal()"></button>
         </div>
         <div class="modal-body" *ngIf="currentVehicle">
-          <p class="text-muted mb-3">
-            Request additional driving minutes from the Admin. The Admin will view your request live and extend your session.
-          </p>
-
-          <div class="mb-3">
-            <label class="form-label fw-bold">Select Additional Minutes</label>
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-outline-primary flex-fill" 
-                      [class.active]="extensionMinutes === 10" (click)="extensionMinutes = 10">
-                +10 mins
-              </button>
-              <button type="button" class="btn btn-outline-primary flex-fill" 
-                      [class.active]="extensionMinutes === 15" (click)="extensionMinutes = 15">
-                +15 mins
-              </button>
-              <button type="button" class="btn btn-outline-primary flex-fill" 
-                      [class.active]="extensionMinutes === 30" (click)="extensionMinutes = 30">
-                +30 mins
-              </button>
+          <!-- ⏳ PENDING STATE: Already submitted, waiting for Admin reply -->
+          <div *ngIf="extensionPending || currentVehicle.extension_request?.status === 'pending'" class="text-center py-3">
+            <div class="rounded-circle bg-warning bg-opacity-10 text-warning d-inline-flex p-3 mb-3">
+              <i class="bi bi-hourglass-split display-5"></i>
             </div>
+            <h5 class="fw-bold text-dark mb-2">Extension Request Already Submitted</h5>
+            <p class="text-muted mb-3">
+              You have already requested <strong>+{{ currentVehicle.extension_request?.minutes || extensionMinutes }} minutes</strong> for this session.<br>
+              <em>Reason: "{{ currentVehicle.extension_request?.reason || extensionReason || 'Additional lesson time requested' }}"</em>
+            </p>
+            <div class="alert alert-warning py-2 small fw-bold mb-3">
+              <i class="bi bi-clock me-1"></i>Status: Waiting for Admin to review and reply...
+            </div>
+            <p class="small text-muted mb-0">
+              Please continue driving safely. You will receive an instant popup alert on this screen as soon as the Admin approves or replies.
+            </p>
           </div>
 
-          <div class="mb-3">
-            <label class="form-label fw-bold">Reason for Extension</label>
-            <input type="text" class="form-control" [(ngModel)]="extensionReason" 
-                   placeholder="e.g. Heavy traffic, student needs extra parking practice">
-          </div>
+          <!-- 📝 NEW REQUEST FORM: When no request is currently pending -->
+          <div *ngIf="!extensionPending && currentVehicle.extension_request?.status !== 'pending'">
+            <p class="text-muted mb-3">
+              Request additional driving minutes from the Admin. The Admin will view your request live and extend your session.
+            </p>
 
-          <div *ngIf="gpsLatitude && gpsLongitude" class="alert alert-info py-2 small">
-            <i class="bi bi-geo-alt-fill me-1"></i>Current GPS: {{ gpsLatitude | number:'1.4-4' }}, {{ gpsLongitude | number:'1.4-4' }}
-          </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Select Additional Minutes</label>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary flex-fill" 
+                        [class.active]="extensionMinutes === 10" (click)="extensionMinutes = 10">
+                  +10 mins
+                </button>
+                <button type="button" class="btn btn-outline-primary flex-fill" 
+                        [class.active]="extensionMinutes === 15" (click)="extensionMinutes = 15">
+                  +15 mins
+                </button>
+                <button type="button" class="btn btn-outline-primary flex-fill" 
+                        [class.active]="extensionMinutes === 30" (click)="extensionMinutes = 30">
+                  +30 mins
+                </button>
+              </div>
+            </div>
 
-          <div *ngIf="extensionMessage" class="alert alert-success py-2 small fw-bold">
-            {{ extensionMessage }}
+            <div class="mb-3">
+              <label class="form-label fw-bold">Reason for Extension</label>
+              <input type="text" class="form-control" [(ngModel)]="extensionReason" 
+                     placeholder="e.g. Heavy traffic, student needs extra parking practice">
+            </div>
+
+            <div *ngIf="gpsLatitude && gpsLongitude" class="alert alert-info py-2 small">
+              <i class="bi bi-geo-alt-fill me-1"></i>Current GPS: {{ gpsLatitude | number:'1.4-4' }}, {{ gpsLongitude | number:'1.4-4' }}
+            </div>
+
+            <div *ngIf="extensionMessage" class="alert alert-success py-2 small fw-bold">
+              {{ extensionMessage }}
+            </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" (click)="closeExtensionModal()">Cancel</button>
-          <button type="button" class="btn btn-primary" [disabled]="extensionLoading" (click)="submitExtensionRequest()">
+          <button type="button" class="btn btn-secondary" (click)="closeExtensionModal()">Close</button>
+          <button *ngIf="!extensionPending && currentVehicle.extension_request?.status !== 'pending'" 
+                  type="button" class="btn btn-primary" [disabled]="extensionLoading" (click)="submitExtensionRequest()">
             <i class="bi bi-send-fill me-1" *ngIf="!extensionLoading"></i>
             <span class="spinner-border spinner-border-sm me-1" *ngIf="extensionLoading"></span>
             Send Request to Admin

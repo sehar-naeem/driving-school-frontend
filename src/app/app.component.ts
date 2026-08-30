@@ -83,7 +83,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Listen for extension requests from ANY instructor on ANY page
     const extSub = this.wsService.onExtensionRequested().subscribe((data: any) => {
-      if (this.authService.isAdmin()) {
+      const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+      const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
+      const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
+
+      if (isAdminUser) {
         console.log('🔔 Global Admin Notification - Extension requested:', data);
         this.globalExtensionRequest = data;
         this.adminReplyMinutes = Number(data.minutes) || 15;

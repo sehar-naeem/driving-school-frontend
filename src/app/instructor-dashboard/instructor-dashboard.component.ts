@@ -168,16 +168,17 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
       const vehicleId = this.getEntityId(this.currentVehicle);
       if (vehicleId && data.vehicle_id?.toString() === vehicleId) {
         this.extensionPending = false;
+        const adminNote = data.message ? `\n\nAdmin Note: "${data.message}"` : '';
         if (data.approved) {
-          this.extensionMessage = `🎉 Admin approved your extension (+${data.additional_minutes} mins)!`;
+          this.extensionMessage = `🎉 Admin approved your extension (+${data.additional_minutes} mins)! ${data.message || ''}`;
           this.warningModalDismissed = false;
           this.expiredModalDismissed = false;
           this.showExpiredModal = false;
           this.loadDashboardData();
-          alert(`✅ Admin Approved Extension: +${data.additional_minutes} minutes added to your session!`);
+          alert(`✅ Admin Approved Extension (+${data.additional_minutes} mins)!${adminNote}`);
         } else {
-          this.extensionMessage = '❌ Extension request declined by Admin.';
-          alert('Admin declined the time extension request.');
+          this.extensionMessage = `❌ Extension declined by Admin.${adminNote}`;
+          alert(`❌ Admin declined the extension request.${adminNote}`);
         }
       }
     });

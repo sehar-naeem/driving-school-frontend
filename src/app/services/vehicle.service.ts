@@ -22,13 +22,21 @@ export class VehicleService {
     );
   }
 
+  private normalizeVehicle(v: any): Vehicle {
+    const currentInst = v.current_instructor || (typeof v.current_instructor_id === 'object' ? v.current_instructor_id : null);
+    return {
+      ...v,
+      id: v._id || v.id,
+      current_instructor: currentInst,
+      current_instructor_id: (typeof v.current_instructor_id === 'object' ? v.current_instructor_id?._id : v.current_instructor_id) || (currentInst?._id || currentInst?.id)
+    };
+  }
+
   getAllVehicles(): Observable<Vehicle[]> {
     return this.http.get<any>(this.API_URL).pipe(
       map(response => {
-        console.log('getAllVehicles response:', response);
         const vehicles = response?.vehicles || response || [];
-        // Add 'id' property for backward compatibility
-        return vehicles.map((v: any) => ({ ...v, id: v._id }));
+        return vehicles.map((v: any) => this.normalizeVehicle(v));
       }),
       tap(vehicles => this.vehiclesSubject.next(vehicles))
     );
@@ -36,26 +44,24 @@ export class VehicleService {
 
   getVehicleById(id: string): Observable<Vehicle> {
     return this.http.get<any>(`${this.API_URL}/${id}`).pipe(
-      map(response => response?.vehicle || response)
+      map(response => this.normalizeVehicle(response?.vehicle || response))
     );
   }
 
-  // ✅ FIXED: Extract array from response
   getVacantVehicles(): Observable<Vehicle[]> {
     return this.http.get<any>(`${this.API_URL}/status/vacant`).pipe(
       map(response => {
-        console.log('Vacant vehicles response:', response);
-        return response?.vehicles || response || [];
+        const vehicles = response?.vehicles || response || [];
+        return vehicles.map((v: any) => this.normalizeVehicle(v));
       })
     );
   }
 
-  // ✅ FIXED: Extract array from response
   getBusyVehicles(): Observable<Vehicle[]> {
     return this.http.get<any>(`${this.API_URL}/status/busy`).pipe(
       map(response => {
-        console.log('Busy vehicles response:', response);
-        return response?.vehicles || response || [];
+        const vehicles = response?.vehicles || response || [];
+        return vehicles.map((v: any) => this.normalizeVehicle(v));
       })
     );
   }

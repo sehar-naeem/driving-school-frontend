@@ -25,9 +25,10 @@
           <div class="vehicle-info">
             <h6 class="mb-1 fw-bold">{{ vehicle.model }}</h6>
             <small class="text-muted d-block font-monospace">{{ vehicle.registration_number }}</small>
-            <small class="text-primary d-block mt-1">
-              <i class="bi bi-person-fill me-1"></i>{{ vehicle.current_instructor?.full_name || 'Assigned Instructor' }}
+            <small class="text-primary d-block mt-1 fw-bold">
+              <i class="bi bi-person-fill me-1"></i>{{ getInstructorName(vehicle) }}
             </small>
+
             <div class="mt-2 d-flex flex-wrap gap-1">
               <span class="badge" [class.bg-warning]="!vehicle.is_parked" [class.text-dark]="!vehicle.is_parked" [class.bg-info]="vehicle.is_parked">
                 {{ vehicle.is_parked ? '🅿️ Parked & Finished' : '🚗 In Use' }}
@@ -39,6 +40,21 @@
                 ⏳ Assigned
               </span>
             </div>
+
+            <!-- Pending Extension Alert on Card -->
+            <div *ngIf="vehicle.extension_request?.status === 'pending'" class="mt-2 p-2 bg-warning bg-opacity-25 border border-warning rounded">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <small class="fw-bold text-dark">
+                  <i class="bi bi-clock-history text-danger me-1"></i>Extension Requested:
+                </small>
+                <span class="badge bg-danger">+{{ vehicle.extension_request?.minutes }} mins</span>
+              </div>
+              <p class="small text-muted mb-2">{{ vehicle.extension_request?.reason || 'Additional lesson time requested' }}</p>
+              <button type="button" class="btn btn-sm btn-primary w-100 fw-bold" (click)="$event.stopPropagation(); openReviewExtensionModal(vehicle)">
+                <i class="bi bi-chat-left-dots-fill me-1"></i>Review & Reply Live
+              </button>
+            </div>
+
             <!-- Coordinates box -->
             <div class="mt-2 p-2 bg-light border rounded">
               <small class="text-danger fw-bold d-block">
@@ -61,4 +77,82 @@
       </div>
     </div>
   </div>
+
+  <!-- 🔔 Admin Live Extension Review & Note Modal -->
+  <div class="modal fade" [class.show]="showExtensionModal" [style.display]="showExtensionModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-primary shadow-lg">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-clock-history me-2"></i>Live Time Extension Request from Instructor
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="closeExtensionModal()"></button>
+        </div>
+        <div class="modal-body" *ngIf="activeExtensionRequest">
+          <div class="d-flex align-items-center mb-3">
+            <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3 text-primary">
+              <i class="bi bi-person-badge-fill fs-2"></i>
+            </div>
+            <div>
+              <h5 class="mb-1 fw-bold text-dark">{{ activeExtensionRequest.instructor }}</h5>
+              <p class="text-muted mb-0">Vehicle: <strong>{{ activeExtensionRequest.model }} ({{ activeExtensionRequest.registration_number }})</strong></p>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="small text-muted fw-bold">Instructor's Reason:</label>
+            <div class="p-2 bg-light border rounded text-dark">
+              {{ activeExtensionRequest.reason || 'Instructor requested extra time for session' }}
+            </div>
+          </div>
+
+          <div *ngIf="activeExtensionRequest.latitude && activeExtensionRequest.longitude" class="alert alert-info py-2 small mb-3">
+            <i class="bi bi-geo-alt-fill text-danger me-1"></i>Current Location: 
+            <span class="font-monospace fw-bold">{{ activeExtensionRequest.latitude | number:'1.4-4' }}, {{ activeExtensionRequest.longitude | number:'1.4-4' }}</span>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Adjust Extra Minutes to Grant:</label>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="adminReplyMinutes === 5" (click)="adminReplyMinutes = 5">
+                +5m
+              </button>
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="adminReplyMinutes === 10" (click)="adminReplyMinutes = 10">
+                +10m
+              </button>
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="adminReplyMinutes === 15" (click)="adminReplyMinutes = 15">
+                +15m
+              </button>
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="adminReplyMinutes === 30" (click)="adminReplyMinutes = 30">
+                +30m
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Admin Message / Instruction to Instructor:</label>
+            <textarea class="form-control" rows="2" [(ngModel)]="adminReplyMessage"
+                      placeholder="e.g. Approved. Please wrap up the lesson and come back as early as you can."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-danger" [disabled]="adminResponding" (click)="declineExtension()">
+            <i class="bi bi-x-circle me-1"></i>Decline with Note
+          </button>
+          <button type="button" class="btn btn-success fw-bold" [disabled]="adminResponding" (click)="approveExtension()">
+            <i class="bi bi-check-circle-fill me-1" *ngIf="!adminResponding"></i>
+            <span class="spinner-border spinner-border-sm me-1" *ngIf="adminResponding"></span>
+            Approve & Send Note (+{{ adminReplyMinutes }}m)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Backdrop -->
+  <div class="modal-backdrop fade" [class.show]="showExtensionModal" *ngIf="showExtensionModal"></div>
 </div>

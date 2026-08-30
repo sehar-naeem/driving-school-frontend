@@ -48,6 +48,8 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   // Live Extension Request Modal (From Instructor)
   showAdminExtensionModal = false;
   incomingExtension: any = null;
+  adminReplyMessage: string = 'Approved. Please complete the lesson and return to school as early as possible.';
+  adminReplyMinutes: number = 15;
 
   // Register Modal
   showRegisterModal = false;
@@ -288,25 +290,26 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   approveIncomingExtension(): void {
     if (!this.incomingExtension) return;
     const vehicleId = this.incomingExtension.vehicle_id;
-    const extraMinutes = Number(this.incomingExtension.minutes) || 15;
+    const extraMinutes = Number(this.adminReplyMinutes) || Number(this.incomingExtension.minutes) || 15;
 
     this.vehicleService.respondExtension(vehicleId, {
       approved: true,
       additional_minutes: extraMinutes,
-      message: `Approved +${extraMinutes} minutes by Admin`
+      message: this.adminReplyMessage || `Approved +${extraMinutes} minutes by Admin`
     }).subscribe({
       next: () => {
         this.timerService.extendTimer(vehicleId, extraMinutes);
         this.wsService.emitExtensionResponse({
           vehicle_id: vehicleId,
           approved: true,
-          additional_minutes: extraMinutes
+          additional_minutes: extraMinutes,
+          message: this.adminReplyMessage
         });
         this.showNotification(`✅ Extension of +${extraMinutes} mins approved for ${this.incomingExtension.registration_number}`, 'success');
         this.closeAdminExtensionModal();
         this.loadVehicles();
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Approve error:', err);
         alert('Failed to approve extension: ' + (err.error?.message || 'Server error'));
       }
@@ -319,17 +322,18 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
     this.vehicleService.respondExtension(vehicleId, {
       approved: false,
-      message: 'Extension declined by Admin'
+      message: this.adminReplyMessage || 'Extension declined by Admin. Please return to school immediately.'
     }).subscribe({
       next: () => {
         this.wsService.emitExtensionResponse({
           vehicle_id: vehicleId,
-          approved: false
+          approved: false,
+          message: this.adminReplyMessage || 'Extension declined by Admin'
         });
         this.showNotification(`Extension declined for ${this.incomingExtension.registration_number}`, 'info');
         this.closeAdminExtensionModal();
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Decline error:', err);
       }
     });

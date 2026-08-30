@@ -1,5 +1,6 @@
 import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { VehicleService } from '../services/vehicle.service';
 import { WebSocketService } from '../services/websocket.service';
@@ -11,7 +12,7 @@ declare var L: any;
 @Component({
   selector: 'app-tracking-map',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './tracking-map.component.html',
   styleUrls: ['./tracking-map.component.scss']
 })
@@ -25,6 +26,13 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
   private subscriptions: Subscription[] = [];
   private mapLoadAttempts = 0;
   private readonly MAX_MAP_LOAD_ATTEMPTS = 10;
+
+  // Live Extension Modal for Admin
+  showExtensionModal: boolean = false;
+  activeExtensionRequest: any = null;
+  adminReplyMinutes: number = 15;
+  adminReplyMessage: string = 'Approved. Please complete the ride and return to school safely as early as you can.';
+  adminResponding: boolean = false;
 
   constructor(
     private vehicleService: VehicleService,
@@ -237,11 +245,22 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     return marker;
   }
 
+  getInstructorName(vehicle: Vehicle): string {
+    if (!vehicle) return 'Assigned Instructor';
+    if (vehicle.current_instructor && vehicle.current_instructor.full_name) {
+      return vehicle.current_instructor.full_name;
+    }
+    if (typeof vehicle.current_instructor_id === 'object' && (vehicle.current_instructor_id as any)?.full_name) {
+      return (vehicle.current_instructor_id as any).full_name;
+    }
+    return 'Assigned Instructor';
+  }
+
   getInfoWindowContent(vehicle: Vehicle): string {
     const isParked = vehicle.is_parked;
     const statusText = isParked ? 'Parked & Completed' : 'In Use (On Road)';
     const statusBg = isParked ? '#0dcaf0' : '#ffc107';
-    const instructor = vehicle.current_instructor?.full_name || 'Assigned Instructor';
+    const instructor = this.getInstructorName(vehicle);
     const lat = Number(vehicle.latitude).toFixed(5);
     const lng = Number(vehicle.longitude).toFixed(5);
 
@@ -258,7 +277,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
         
         <div style="font-size: 13px; color: #495057; line-height: 1.6;">
           <div><strong>Registration:</strong> <span style="font-family: monospace; font-weight: 600;">${vehicle.registration_number}</span></div>
-          <div><strong>Instructor:</strong> ${instructor}</div>
+          <div><strong>Instructor:</strong> <span style="font-weight: 600; color: #0d6efd;">${instructor}</span></div>
           ${vehicle.time_slot ? `<div><strong>Time Slot:</strong> ${vehicle.time_slot} minutes</div>` : ''}
         </div>
 
@@ -325,6 +344,19 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       });
       this.subscriptions.push(parkedSub);
 
+      // 🔔 Subscribe to live extension requests from instructors
+      const extSub = this.wsService.onExtensionRequested().subscribe({
+        next: (data: any) => {
+          console.log('🔔 Live extension requested on map:', data);
+          this.activeExtensionRequest = data;
+          this.adminReplyMinutes = Number(data.minutes) || 15;
+          this.adminReplyMessage = 'Approved. Please complete the ride and return to school safely as early as you can.';
+          this.showExtensionModal = true;
+          this.loadVehicles();
+        }
+      });
+      this.subscriptions.push(extSub);
+
     } catch (error) {
       console.error('❌ Error setting up realtime tracking:', error);
     }
@@ -363,5 +395,87 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.trails.set(vehicleId, trail);
       }
     }
+  }
+
+  // ===== ADMIN EXTENSION MODAL ACTIONS =====
+  openReviewExtensionModal(vehicle: Vehicle): void {
+    const vehicleId = (vehicle.id || vehicle._id)?.toString();
+    this.activeExtensionRequest = {
+      vehicle_id: vehicleId,
+      registration_number: vehicle.registration_number,
+      model: vehicle.model,
+      instructor: this.getInstructorName(vehicle),
+      minutes: vehicle.extension_request?.minutes || 15,
+      reason: vehicle.extension_request?.reason || 'Instructor requested extra lesson time',
+      latitude: vehicle.latitude,
+      longitude: vehicle.longitude
+    };
+    this.adminReplyMinutes = Number(this.activeExtensionRequest.minutes) || 15;
+    this.adminReplyMessage = 'Approved. Please complete the ride and return to school safely as early as you can.';
+    this.showExtensionModal = true;
+  }
+
+  closeExtensionModal(): void {
+    this.showExtensionModal = false;
+    this.activeExtensionRequest = null;
+  }
+
+  approveExtension(): void {
+    if (!this.activeExtensionRequest) return;
+    const vehicleId = this.activeExtensionRequest.vehicle_id;
+    const extraMinutes = Number(this.adminReplyMinutes) || 15;
+
+    this.adminResponding = true;
+
+    this.vehicleService.respondExtension(vehicleId, {
+      approved: true,
+      additional_minutes: extraMinutes,
+      message: this.adminReplyMessage || `Approved +${extraMinutes} minutes by Admin`
+    }).subscribe({
+      next: () => {
+        this.adminResponding = false;
+        this.wsService.emitExtensionResponse({
+          vehicle_id: vehicleId,
+          approved: true,
+          additional_minutes: extraMinutes,
+          message: this.adminReplyMessage
+        });
+        alert(`✅ Extension of +${extraMinutes} mins approved for ${this.activeExtensionRequest.registration_number}! Instructor notified.`);
+        this.closeExtensionModal();
+        this.loadVehicles();
+      },
+      error: (err: any) => {
+        this.adminResponding = false;
+        alert('Failed to approve extension: ' + (err.error?.message || 'Server error'));
+      }
+    });
+  }
+
+  declineExtension(): void {
+    if (!this.activeExtensionRequest) return;
+    const vehicleId = this.activeExtensionRequest.vehicle_id;
+
+    this.adminResponding = true;
+
+    this.vehicleService.respondExtension(vehicleId, {
+      approved: false,
+      message: this.adminReplyMessage || 'Extension declined by Admin. Please return to driving school immediately.'
+    }).subscribe({
+      next: () => {
+        this.adminResponding = false;
+        this.wsService.emitExtensionResponse({
+          vehicle_id: vehicleId,
+          approved: false,
+          message: this.adminReplyMessage || 'Extension declined by Admin'
+        });
+        alert(`Extension declined for ${this.activeExtensionRequest.registration_number}. Instructor notified.`);
+        this.closeExtensionModal();
+        this.loadVehicles();
+      },
+      error: (err: any) => {
+        this.adminResponding = false;
+        alert('Error declining extension: ' + (err.error?.message || 'Server error'));
+      }
+    });
   }
 }

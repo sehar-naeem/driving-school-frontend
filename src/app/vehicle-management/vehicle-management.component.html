@@ -596,22 +596,50 @@
             <strong>Requested Extra Time:</strong> <span class="badge bg-primary fs-6 ms-2">+{{ incomingExtension.minutes }} minutes</span>
           </div>
 
-          <div class="mb-2">
+          <div class="mb-3">
             <label class="small text-muted fw-bold">Instructor's Reason:</label>
-            <p class="p-2 bg-light border rounded mb-2">{{ incomingExtension.reason || 'Requested additional time for student' }}</p>
+            <p class="p-2 bg-light border rounded mb-2 text-dark">{{ incomingExtension.reason || 'Requested additional time for student' }}</p>
           </div>
 
-          <div *ngIf="incomingExtension.latitude && incomingExtension.longitude" class="small text-muted">
+          <div *ngIf="incomingExtension.latitude && incomingExtension.longitude" class="alert alert-info py-2 small mb-3">
             <i class="bi bi-geo-alt-fill text-danger me-1"></i>Current Location: 
             <span class="font-monospace fw-bold text-dark">{{ incomingExtension.latitude | number:'1.4-4' }}, {{ incomingExtension.longitude | number:'1.4-4' }}</span>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Adjust Extra Minutes to Grant:</label>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="adminReplyMinutes === 5" (click)="adminReplyMinutes = 5">
+                +5m
+              </button>
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="adminReplyMinutes === 10" (click)="adminReplyMinutes = 10">
+                +10m
+              </button>
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="adminReplyMinutes === 15" (click)="adminReplyMinutes = 15">
+                +15m
+              </button>
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="adminReplyMinutes === 30" (click)="adminReplyMinutes = 30">
+                +30m
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Admin Message / Note to Instructor:</label>
+            <textarea class="form-control" rows="2" [(ngModel)]="adminReplyMessage"
+                      placeholder="e.g. Approved. Please wrap up the lesson and come back as early as you can."></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-danger" (click)="declineIncomingExtension()">
-            <i class="bi bi-x-circle me-1"></i>Decline
+            <i class="bi bi-x-circle me-1"></i>Decline with Note
           </button>
-          <button type="button" class="btn btn-success" (click)="approveIncomingExtension()">
-            <i class="bi bi-check-circle-fill me-1"></i>Approve & Extend Live (+{{ incomingExtension?.minutes || 15 }}m)
+          <button type="button" class="btn btn-success fw-bold" (click)="approveIncomingExtension()">
+            <i class="bi bi-check-circle-fill me-1"></i>Approve & Send Note (+{{ adminReplyMinutes }}m)
           </button>
         </div>
       </div>

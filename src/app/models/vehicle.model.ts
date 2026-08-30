@@ -17,8 +17,15 @@ export interface Vehicle {
   time_slot?: number | null;
   session_start?: Date | null;
   latitude: number;
-  longitude: number;
   last_location_update?: Date;
+  is_parked?: boolean;
+  parked_at?: Date | null;
+  extension_request?: {
+    minutes?: number;
+    reason?: string;
+    requested_at?: Date;
+    status?: 'pending' | 'approved' | 'rejected' | null;
+  } | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

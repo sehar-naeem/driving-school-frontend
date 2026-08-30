@@ -16,10 +16,10 @@ declare var L: any;
   styleUrls: ['./tracking-map.component.scss']
 })
 export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
-  vehicles: Vehicle[] = [];
+  vehicles: Vehicle[] = []; // In-use vehicles only
   map: any;
   markers: Map<string, any> = new Map();
-  trails: Map<string, any> = new Map(); // Trail polyline for each vehicle
+  trails: Map<string, any> = new Map();
   
   targetVehicleId: string | null = null;
   private subscriptions: Subscription[] = [];
@@ -93,10 +93,13 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
   loadVehicles(): void {
     const sub = this.vehicleService.getAllVehicles().subscribe({
       next: (response: any) => {
-        console.log('Vehicles loaded:', response);
-        this.vehicles = Array.isArray(response) 
+        const rawVehicles = Array.isArray(response) 
           ? response 
           : (response?.vehicles || response?.data || []);
+        
+        // 🔒 ONLY show vehicles that are currently in use / busy on the live tracking map
+        this.vehicles = rawVehicles.filter(v => v.status === 'busy');
+        console.log('In-use vehicles loaded for live tracking:', this.vehicles);
         
         this.updateMarkers();
 
@@ -123,7 +126,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     try {
-      // Default center
+      // Default center coordinates
       this.map = L.map('map').setView([33.5651, 73.0169], 13);
 
       // Add OpenStreetMap tiles (100% Free, no API keys needed)
@@ -152,7 +155,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const bounds: any[] = [];
 
-    // Add new markers
+    // Add new markers for active in-use vehicles only
     this.vehicles.forEach(vehicle => {
       const marker = this.createMarkerForVehicle(vehicle);
       if (marker) {
@@ -185,9 +188,9 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (isNaN(lat) || isNaN(lng)) return null;
 
-    const isBusy = vehicle.status === 'busy';
-    const markerColor = isBusy ? '#ffc107' : '#28a745';
-    const textColor = isBusy ? '#000000' : '#ffffff';
+    const isParked = vehicle.is_parked;
+    const markerColor = isParked ? '#0dcaf0' : '#ffc107'; // Cyan for parked, Amber for driving
+    const iconClass = isParked ? 'bi-p-circle-fill' : 'bi-car-front-fill';
 
     // Custom HTML Marker Icon
     const customIcon = L.divIcon({
@@ -195,24 +198,24 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       html: `
         <div style="
           background-color: ${markerColor};
-          color: ${textColor};
-          width: 38px;
-          height: 38px;
+          color: #000000;
+          width: 42px;
+          height: 42px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 3px 8px rgba(0,0,0,0.35);
-          border: 2.5px solid #ffffff;
-          font-size: 18px;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+          border: 3px solid #ffffff;
+          font-size: 20px;
           cursor: pointer;
         ">
-          <i class="bi bi-car-front-fill"></i>
+          <i class="bi ${iconClass}"></i>
         </div>
       `,
-      iconSize: [38, 38],
-      iconAnchor: [19, 19],
-      popupAnchor: [0, -20]
+      iconSize: [42, 42],
+      iconAnchor: [21, 21],
+      popupAnchor: [0, -22]
     });
 
     const marker = L.marker([lat, lng], { icon: customIcon }).addTo(this.map);
@@ -220,12 +223,12 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.markers.set(vehicleId, marker);
 
-    // Initialize vehicle movement trail if in use
-    if (isBusy && !this.trails.has(vehicleId)) {
+    // Initialize vehicle movement trail
+    if (!this.trails.has(vehicleId)) {
       const trail = L.polyline([[lat, lng]], {
         color: '#0d6efd',
         weight: 4,
-        opacity: 0.7,
+        opacity: 0.8,
         dashArray: '6, 8'
       }).addTo(this.map);
       this.trails.set(vehicleId, trail);
@@ -235,28 +238,36 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getInfoWindowContent(vehicle: Vehicle): string {
-    const isBusy = vehicle.status === 'busy';
-    const status = isBusy ? 'In Use' : 'Available';
-    const statusBg = isBusy ? '#ffc107' : '#28a745';
-    const statusText = isBusy ? '#212529' : '#ffffff';
-    const instructor = vehicle.current_instructor?.full_name || 'Not Assigned';
+    const isParked = vehicle.is_parked;
+    const statusText = isParked ? 'Parked & Completed' : 'In Use (On Road)';
+    const statusBg = isParked ? '#0dcaf0' : '#ffc107';
+    const instructor = vehicle.current_instructor?.full_name || 'Assigned Instructor';
+    const lat = Number(vehicle.latitude).toFixed(5);
+    const lng = Number(vehicle.longitude).toFixed(5);
 
     return `
-      <div style="padding: 10px; min-width: 230px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="padding: 10px; min-width: 250px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h6 style="margin: 0; font-weight: 700; color: #212529; font-size: 15px;">
+          <h6 style="margin: 0; font-weight: 700; color: #212529; font-size: 16px;">
             <i class="bi bi-car-front-fill" style="color: #0d6efd;"></i> ${vehicle.model}
           </h6>
-          <span style="background: ${statusBg}; color: ${statusText}; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px;">
-            ${status}
+          <span style="background: ${statusBg}; color: #212529; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 12px;">
+            ${statusText}
           </span>
         </div>
+        
         <div style="font-size: 13px; color: #495057; line-height: 1.6;">
-          <div><strong>Reg Number:</strong> ${vehicle.registration_number}</div>
+          <div><strong>Registration:</strong> <span style="font-family: monospace; font-weight: 600;">${vehicle.registration_number}</span></div>
           <div><strong>Instructor:</strong> ${instructor}</div>
-          ${vehicle.time_slot ? `<div><strong>Time Slot:</strong> ${vehicle.time_slot} mins</div>` : ''}
-          <div style="margin-top: 4px; font-size: 11px; color: #6c757d;">
-            <strong>GPS:</strong> ${Number(vehicle.latitude).toFixed(4)}, ${Number(vehicle.longitude).toFixed(4)}
+          ${vehicle.time_slot ? `<div><strong>Time Slot:</strong> ${vehicle.time_slot} minutes</div>` : ''}
+        </div>
+
+        <div style="background: #f0f7ff; border: 1.5px solid #0d6efd; border-radius: 8px; padding: 8px 10px; margin-top: 10px;">
+          <div style="font-weight: 700; color: #0d6efd; font-size: 12px; margin-bottom: 2px;">
+            <i class="bi bi-geo-alt-fill text-danger me-1"></i>CURRENT VEHICLE LOCATION:
+          </div>
+          <div style="font-size: 13px; font-weight: 700; font-family: monospace; color: #1e293b;">
+            Lat: ${lat} | Lng: ${lng}
           </div>
         </div>
       </div>
@@ -296,7 +307,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       // Subscribe to vehicle updates
       const vehicleSub = this.wsService.onVehicleUpdate().subscribe({
         next: () => {
-          console.log('🔄 Vehicle update received, reloading vehicles');
+          console.log('🔄 Vehicle update received, reloading in-use vehicles');
           this.loadVehicles();
         },
         error: (err) => {
@@ -304,6 +315,16 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       });
       this.subscriptions.push(vehicleSub);
+
+      // Subscribe to parked reports
+      const parkedSub = this.wsService.onVehicleParked().subscribe({
+        next: (data: any) => {
+          console.log('🅿️ Vehicle reported parked:', data);
+          this.loadVehicles();
+        }
+      });
+      this.subscriptions.push(parkedSub);
+
     } catch (error) {
       console.error('❌ Error setting up realtime tracking:', error);
     }
@@ -325,7 +346,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       if (marker && this.map) {
         marker.setLatLng([vehicle.latitude, vehicle.longitude]);
         marker.setPopupContent(this.getInfoWindowContent(vehicle));
-        console.log('✅ Marker position updated for vehicle:', vehicleId);
+        console.log('✅ Marker position updated for in-use vehicle:', vehicleId);
       }
 
       // Extend movement trail line
@@ -336,7 +357,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
         const trail = L.polyline([[vehicle.latitude, vehicle.longitude]], {
           color: '#0d6efd',
           weight: 4,
-          opacity: 0.7,
+          opacity: 0.8,
           dashArray: '6, 8'
         }).addTo(this.map);
         this.trails.set(vehicleId, trail);

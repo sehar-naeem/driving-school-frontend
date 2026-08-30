@@ -5,9 +5,17 @@
       <h1 class="welcome-title">
         Welcome back, {{ currentUser?.full_name }}! 👋
       </h1>
-      <p class="welcome-subtitle">Here's your schedule and status for today</p>
+      <p class="welcome-subtitle">Here's your active vehicle schedule and live controls</p>
     </div>
-    <div class="quick-actions">
+    <div class="quick-actions d-flex gap-2">
+      <button *ngIf="currentVehicle" class="btn btn-outline-primary" (click)="openExtensionModal()">
+        <i class="bi bi-clock-history me-1"></i>
+        <span>Request Extension</span>
+      </button>
+      <button *ngIf="currentVehicle" class="btn btn-outline-success" (click)="openParkedModal()">
+        <i class="bi bi-p-circle me-1"></i>
+        <span>Report Parked</span>
+      </button>
       <button class="quick-action-btn" routerLink="/instructor/file-complaint">
         <i class="bi bi-plus-circle"></i>
         <span>File Complaint</span>
@@ -51,12 +59,19 @@
 
   <!-- Current Allocation -->
   <div class="allocation-section" *ngIf="currentVehicle">
-    <div class="section-header">
+    <div class="section-header d-flex justify-content-between align-items-center">
       <h2>
-        <i class="bi bi-car-front"></i>
-        Current Allocation
+        <i class="bi bi-car-front me-2"></i>
+        Current Vehicle Allocation
       </h2>
+      <span *ngIf="extensionPending" class="badge bg-warning text-dark py-2 px-3">
+        <i class="bi bi-hourglass-split me-1"></i>Extension Request Pending Admin Approval
+      </span>
+      <span *ngIf="isCarReportedParked" class="badge bg-info py-2 px-3 text-dark">
+        <i class="bi bi-p-circle-fill me-1"></i>Vehicle Parked & Reported
+      </span>
     </div>
+
     <div class="allocation-card">
       <div class="vehicle-visual">
         <div class="vehicle-icon-large">
@@ -69,7 +84,7 @@
         <div class="detail-grid">
           <div class="detail-item">
             <span class="detail-label">Registration</span>
-            <span class="detail-value">{{ currentVehicle.registration_number }}</span>
+            <span class="detail-value font-monospace">{{ currentVehicle.registration_number }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Session Duration</span>
@@ -77,15 +92,16 @@
           </div>
           <div class="detail-item">
             <span class="detail-label">Time Remaining</span>
-            <span class="detail-value time-remaining">{{ getRemainingTime() }}</span>
+            <span class="detail-value time-remaining fw-bold text-danger">{{ getRemainingTime() }}</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Status</span>
-            <span class="badge-active">Active Session</span>
+            <span class="badge-active" *ngIf="!isCarReportedParked">Active Ride</span>
+            <span class="badge bg-info text-dark" *ngIf="isCarReportedParked">Parked</span>
           </div>
         </div>
 
-        <!-- Live GPS Broadcast Control -->
+        <!-- Live Controls & Quick Action Buttons -->
         <div class="mt-4 pt-3 border-top">
           <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
             <div>
@@ -93,11 +109,11 @@
                 <i class="bi bi-broadcast me-1 text-primary"></i>Live GPS Sharing to Admin
               </h6>
               <p class="small text-muted mb-0" *ngIf="!isSharingGps">
-                Enable GPS sharing so Admin can see your live car location and route on the map.
+                Broadcasting GPS lets the Admin track your live location and route on the map.
               </p>
-              <p class="small text-success mb-0" *ngIf="isSharingGps">
+              <p class="small text-success mb-0 fw-bold" *ngIf="isSharingGps">
                 <i class="bi bi-record-circle-fill text-danger me-1"></i>
-                Broadcasting live GPS: {{ gpsLatitude | number:'1.4-4' }}, {{ gpsLongitude | number:'1.4-4' }}
+                Live GPS Active: {{ gpsLatitude | number:'1.4-4' }}, {{ gpsLongitude | number:'1.4-4' }}
                 <span *ngIf="gpsAccuracy" class="badge bg-secondary ms-1">&plusmn;{{ gpsAccuracy }}m</span>
                 <span *ngIf="gpsSpeed !== null" class="badge bg-info text-dark ms-1">{{ gpsSpeed }} km/h</span>
               </p>
@@ -106,15 +122,25 @@
               </div>
             </div>
 
-            <button 
-              type="button" 
-              class="btn"
-              [class.btn-success]="!isSharingGps"
-              [class.btn-danger]="isSharingGps"
-              (click)="toggleGpsSharing()">
-              <i class="bi" [class.bi-geo-alt-fill]="!isSharingGps" [class.bi-stop-circle-fill]="isSharingGps"></i>
-              {{ isSharingGps ? 'Stop Live GPS Sharing' : 'Start Live GPS Sharing' }}
-            </button>
+            <div class="d-flex flex-wrap gap-2">
+              <button 
+                type="button" 
+                class="btn"
+                [class.btn-success]="!isSharingGps"
+                [class.btn-danger]="isSharingGps"
+                (click)="toggleGpsSharing()">
+                <i class="bi" [class.bi-geo-alt-fill]="!isSharingGps" [class.bi-stop-circle-fill]="isSharingGps"></i>
+                {{ isSharingGps ? 'Stop GPS Broadcast' : 'Start GPS Broadcast' }}
+              </button>
+
+              <button type="button" class="btn btn-outline-warning text-dark fw-bold" (click)="openExtensionModal()">
+                <i class="bi bi-clock-history me-1"></i>Extend Time
+              </button>
+
+              <button type="button" class="btn btn-outline-info text-dark fw-bold" (click)="openParkedModal()">
+                <i class="bi bi-p-circle-fill me-1"></i>Report Parked
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -168,4 +194,190 @@
       </div>
     </div>
   </div>
+
+  <!-- ==================== POPUPS & MODALS ==================== -->
+
+  <!-- ⚠️ 5-Minute Warning Modal for Instructor -->
+  <div class="modal fade" [class.show]="showWarningModal" [style.display]="showWarningModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-warning shadow-lg">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>⚠️ 5 Minutes Left: Head Back to School!
+          </h5>
+          <button type="button" class="btn-close" (click)="dismissWarningModal()"></button>
+        </div>
+        <div class="modal-body" *ngIf="currentVehicle">
+          <div class="d-flex align-items-center mb-3">
+            <div class="rounded-circle bg-warning bg-opacity-25 p-3 me-3 text-warning">
+              <i class="bi bi-hourglass-split fs-2"></i>
+            </div>
+            <div>
+              <h5 class="mb-1 fw-bold">{{ currentVehicle.model }} ({{ currentVehicle.registration_number }})</h5>
+              <p class="text-muted mb-0">Remaining Session Time: <strong class="text-danger">{{ getRemainingTime() }}</strong></p>
+            </div>
+          </div>
+          <div class="alert alert-warning py-2">
+            <i class="bi bi-geo-alt-fill me-1"></i>
+            <strong>Notice:</strong> Your allocated ride time is coming to an end. Please start heading back to the driving school to safely conclude this lesson.
+          </div>
+          <p class="small text-muted mb-0">
+            If you are stuck in traffic or need extra time, you can request an instant time extension from the Admin.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="dismissWarningModal()">
+            <i class="bi bi-check-circle me-1"></i>Understood / Heading Back
+          </button>
+          <button type="button" class="btn btn-warning text-dark fw-bold" (click)="openExtensionModal()">
+            <i class="bi bi-clock-history me-1"></i>Request Extra Time
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⏰ Session Time Completed Modal for Instructor -->
+  <div class="modal fade" [class.show]="showExpiredModal" [style.display]="showExpiredModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-danger shadow-lg">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-alarm-fill me-2"></i>⏰ Session Time Completed!
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="dismissExpiredModal()"></button>
+        </div>
+        <div class="modal-body" *ngIf="currentVehicle">
+          <div class="d-flex align-items-center mb-3">
+            <div class="rounded-circle bg-danger bg-opacity-25 p-3 me-3 text-danger">
+              <i class="bi bi-car-front-fill fs-2"></i>
+            </div>
+            <div>
+              <h5 class="mb-1 fw-bold">{{ currentVehicle.model }} ({{ currentVehicle.registration_number }})</h5>
+              <p class="text-muted mb-0">Allocated Session: <strong>{{ currentVehicle.time_slot }} minutes</strong> (Finished)</p>
+            </div>
+          </div>
+          <div class="alert alert-danger py-2">
+            <i class="bi bi-info-circle-fill me-1"></i>
+            Your ride time has finished. Please report the car as parked or request a time extension if you are still driving.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" (click)="dismissExpiredModal()">
+            Dismiss
+          </button>
+          <button type="button" class="btn btn-warning text-dark fw-bold" (click)="openExtensionModal()">
+            <i class="bi bi-clock-history me-1"></i>Request Extension
+          </button>
+          <button type="button" class="btn btn-success" (click)="openParkedModal()">
+            <i class="bi bi-p-circle-fill me-1"></i>Report Car Parked
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⏱️ Request Time Extension Modal -->
+  <div class="modal fade" [class.show]="showExtensionModal" [style.display]="showExtensionModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-primary shadow-lg">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-clock-history me-2"></i>Request Live Time Extension
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="closeExtensionModal()"></button>
+        </div>
+        <div class="modal-body" *ngIf="currentVehicle">
+          <p class="text-muted mb-3">
+            Request additional driving minutes from the Admin. The Admin will view your request live and extend your session.
+          </p>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Select Additional Minutes</label>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="extensionMinutes === 10" (click)="extensionMinutes = 10">
+                +10 mins
+              </button>
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="extensionMinutes === 15" (click)="extensionMinutes = 15">
+                +15 mins
+              </button>
+              <button type="button" class="btn btn-outline-primary flex-fill" 
+                      [class.active]="extensionMinutes === 30" (click)="extensionMinutes = 30">
+                +30 mins
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Reason for Extension</label>
+            <input type="text" class="form-control" [(ngModel)]="extensionReason" 
+                   placeholder="e.g. Heavy traffic, student needs extra parking practice">
+          </div>
+
+          <div *ngIf="gpsLatitude && gpsLongitude" class="alert alert-info py-2 small">
+            <i class="bi bi-geo-alt-fill me-1"></i>Current GPS: {{ gpsLatitude | number:'1.4-4' }}, {{ gpsLongitude | number:'1.4-4' }}
+          </div>
+
+          <div *ngIf="extensionMessage" class="alert alert-success py-2 small fw-bold">
+            {{ extensionMessage }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeExtensionModal()">Cancel</button>
+          <button type="button" class="btn btn-primary" [disabled]="extensionLoading" (click)="submitExtensionRequest()">
+            <i class="bi bi-send-fill me-1" *ngIf="!extensionLoading"></i>
+            <span class="spinner-border spinner-border-sm me-1" *ngIf="extensionLoading"></span>
+            Send Request to Admin
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🅿️ Report Car Parked Modal -->
+  <div class="modal fade" [class.show]="showParkedModal" [style.display]="showParkedModal ? 'block' : 'none'" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-success shadow-lg">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-p-circle-fill me-2"></i>Report Car Parked & Safe
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="closeParkedModal()"></button>
+        </div>
+        <div class="modal-body" *ngIf="currentVehicle">
+          <p class="text-muted mb-3">
+            Confirm that the vehicle has been safely parked at the driving school or designated parking bay.
+          </p>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Parking Notes / Condition</label>
+            <textarea class="form-control" rows="2" [(ngModel)]="parkedNote"
+                      placeholder="e.g. Parked at Bay 3, no issues, keys placed on desk."></textarea>
+          </div>
+
+          <div class="alert alert-light border py-2">
+            <div class="small text-muted">Final Recorded Location:</div>
+            <div class="font-monospace fw-bold text-success">
+              Lat: {{ (gpsLatitude || 33.5651) | number:'1.5-5' }}, Lng: {{ (gpsLongitude || 73.0169) | number:'1.5-5' }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeParkedModal()">Cancel</button>
+          <button type="button" class="btn btn-success" [disabled]="parkedLoading" (click)="submitParkedReport()">
+            <i class="bi bi-check-circle-fill me-1" *ngIf="!parkedLoading"></i>
+            <span class="spinner-border spinner-border-sm me-1" *ngIf="parkedLoading"></span>
+            Confirm & Report Parked
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Backdrop -->
+  <div class="modal-backdrop fade" 
+       [class.show]="showWarningModal || showExpiredModal || showExtensionModal || showParkedModal" 
+       *ngIf="showWarningModal || showExpiredModal || showExtensionModal || showParkedModal"></div>
 </div>

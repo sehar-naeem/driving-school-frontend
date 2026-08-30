@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { VehicleService } from '../services/vehicle.service';
 import { UserService } from '../services/user.service';
+import { WebSocketService } from '../services/websocket.service';
 import { VehicleTimerService, TimerNotification } from '../services/vehicle-timer.service';
 import { Vehicle, VehicleCreateRequest } from '../models/vehicle.model';
 import { User } from '../models/user.model';
@@ -26,6 +27,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   private timerSubscription?: Subscription;
   private checkTimerInterval?: Subscription;
   private notificationSubscription?: Subscription;
+  private wsSubscriptions: Subscription[] = [];
   
   // Allocate Modal
   showAllocateModal = false;
@@ -42,6 +44,10 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   // Time Expired Action Modal (0 mins remaining)
   showExpiredModal = false;
   activeExpired: TimerNotification | null = null;
+
+  // Live Extension Request Modal (From Instructor)
+  showAdminExtensionModal = false;
+  incomingExtension: any = null;
 
   // Register Modal
   showRegisterModal = false;
@@ -73,6 +79,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     private vehicleService: VehicleService,
     private userService: UserService,
     private timerService: VehicleTimerService,
+    private wsService: WebSocketService,
     private router: Router
   ) {}
 
@@ -80,6 +87,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     this.loadVehicles();
     this.loadInstructors();
     this.requestNotificationPermission();
+    this.setupWebSocketListeners();
     
     // Real-time updates
     this.vehicleService.vehicles$.subscribe(() => {
@@ -88,7 +96,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
     // Subscribe to timer updates
     this.timerSubscription = this.timerService.timers$.subscribe(() => {
-      // Timer updated, component will re-render
+      // Component will re-render remaining times
     });
 
     // Subscribe to timer warnings and expiry notifications
@@ -120,6 +128,28 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     if (this.checkTimerInterval) {
       this.checkTimerInterval.unsubscribe();
     }
+    this.wsSubscriptions.forEach(s => s.unsubscribe());
+  }
+
+  private setupWebSocketListeners(): void {
+    this.wsService.connect();
+
+    // Listen for extension requests from instructors
+    const extReqSub = this.wsService.onExtensionRequested().subscribe((data: any) => {
+      console.log('🔔 Extension requested by instructor:', data);
+      this.incomingExtension = data;
+      this.showAdminExtensionModal = true;
+      this.showNotification(`⏱️ Extension Request: Instructor ${data.instructor} requested +${data.minutes} mins for ${data.registration_number}`, 'info');
+    });
+    this.wsSubscriptions.push(extReqSub);
+
+    // Listen for parked vehicle reports
+    const parkedSub = this.wsService.onVehicleParked().subscribe((data: any) => {
+      console.log('🅿️ Vehicle reported parked:', data);
+      this.showNotification(`🅿️ Vehicle ${data.registration_number} reported parked by Instructor ${data.instructor} (Lat: ${Number(data.latitude).toFixed(4)}, Lng: ${Number(data.longitude).toFixed(4)})`, 'success');
+      this.loadVehicles();
+    });
+    this.wsSubscriptions.push(parkedSub);
   }
 
   loadVehicles(): void {
@@ -135,7 +165,6 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     this.vehicleService.getBusyVehicles().subscribe({
       next: (vehicles) => {
         this.busyVehicles = vehicles;
-        // Start timers for busy vehicles
         this.initializeTimers();
       },
       error: (err) => {
@@ -201,9 +230,6 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Calculate remaining minutes for a vehicle
-   */
   calculateRemainingMinutes(vehicle: Vehicle): number {
     if (!vehicle.session_start || !vehicle.time_slot) return 0;
     
@@ -215,9 +241,6 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     return Math.max(0, remainingMinutes);
   }
 
-  /**
-   * Check for expired timers
-   */
   checkExpiredTimers(): void {
     this.busyVehicles.forEach(vehicle => {
       const vehicleId = (vehicle._id || vehicle.id)?.toString();
@@ -229,9 +252,6 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Get remaining time display for a vehicle
-   */
   getRemainingTime(vehicle: Vehicle): string {
     const vehicleId = (vehicle._id || vehicle.id)?.toString();
     if (!vehicleId) return 'N/A';
@@ -254,6 +274,62 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     const minutes = remainingMinutes % 60;
     
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  }
+
+  // ===== LIVE EXTENSION REQUEST ACTIONS (ADMIN) =====
+  approveIncomingExtension(): void {
+    if (!this.incomingExtension) return;
+    const vehicleId = this.incomingExtension.vehicle_id;
+    const extraMinutes = Number(this.incomingExtension.minutes) || 15;
+
+    this.vehicleService.respondExtension(vehicleId, {
+      approved: true,
+      additional_minutes: extraMinutes,
+      message: `Approved +${extraMinutes} minutes by Admin`
+    }).subscribe({
+      next: () => {
+        this.timerService.extendTimer(vehicleId, extraMinutes);
+        this.wsService.emitExtensionResponse({
+          vehicle_id: vehicleId,
+          approved: true,
+          additional_minutes: extraMinutes
+        });
+        this.showNotification(`✅ Extension of +${extraMinutes} mins approved for ${this.incomingExtension.registration_number}`, 'success');
+        this.closeAdminExtensionModal();
+        this.loadVehicles();
+      },
+      error: (err) => {
+        console.error('Approve error:', err);
+        alert('Failed to approve extension: ' + (err.error?.message || 'Server error'));
+      }
+    });
+  }
+
+  declineIncomingExtension(): void {
+    if (!this.incomingExtension) return;
+    const vehicleId = this.incomingExtension.vehicle_id;
+
+    this.vehicleService.respondExtension(vehicleId, {
+      approved: false,
+      message: 'Extension declined by Admin'
+    }).subscribe({
+      next: () => {
+        this.wsService.emitExtensionResponse({
+          vehicle_id: vehicleId,
+          approved: false
+        });
+        this.showNotification(`Extension declined for ${this.incomingExtension.registration_number}`, 'info');
+        this.closeAdminExtensionModal();
+      },
+      error: (err) => {
+        console.error('Decline error:', err);
+      }
+    });
+  }
+
+  closeAdminExtensionModal(): void {
+    this.showAdminExtensionModal = false;
+    this.incomingExtension = null;
   }
 
   // ===== WARNING MODAL ACTIONS =====
@@ -281,10 +357,14 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   extendExpiredVehicle(minutes: number = 15): void {
     if (!this.activeExpired) return;
     const vehicleId = this.activeExpired.vehicleId;
-    this.timerService.extendTimer(vehicleId, minutes);
-    this.showNotification(`Vehicle session extended by ${minutes} minutes!`, 'success');
-    this.closeExpiredModal();
-    this.loadVehicles();
+    this.vehicleService.respondExtension(vehicleId, { approved: true, additional_minutes: minutes }).subscribe({
+      next: () => {
+        this.timerService.extendTimer(vehicleId, minutes);
+        this.showNotification(`Vehicle session extended by ${minutes} minutes!`, 'success');
+        this.closeExpiredModal();
+        this.loadVehicles();
+      }
+    });
   }
 
   closeExpiredModal(): void {
@@ -322,7 +402,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     this.registerError = '';
 
     this.vehicleService.createVehicle(this.registerFormData).subscribe({
-      next: (response) => {
+      next: () => {
         this.showNotification('Vehicle registered successfully!', 'success');
         this.closeRegisterModal();
         this.loadVehicles();
@@ -385,7 +465,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     };
 
     this.vehicleService.updateVehicle(vehicleId, updateData).subscribe({
-      next: (response) => {
+      next: () => {
         this.showNotification('Vehicle updated successfully!', 'success');
         this.closeEditModal();
         this.loadVehicles();
@@ -447,7 +527,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
         instructor_id: this.allocationData.instructor_id,
         time_slot: this.allocationData.time_slot
       }).subscribe({
-        next: (response) => {
+        next: () => {
           const instructorName = this.instructors.find(i => (i._id || i.id)?.toString() === this.allocationData.instructor_id?.toString())?.full_name || '';
           
           this.timerService.startTimer(
@@ -484,7 +564,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
       this.timerService.stopTimer(id);
       
       this.vehicleService.releaseVehicle(id).subscribe({
-        next: (response) => {
+        next: () => {
           this.showNotification('Vehicle released successfully!', 'success');
           this.loadVehicles();
           this.loadInstructors();
@@ -524,7 +604,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
           icon: '/favicon.ico'
         });
       } catch (e) {
-        // Ignore fallback
+        // Fallback
       }
     }
   }

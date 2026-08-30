@@ -1,7 +1,7 @@
 <div class="tracking-container">
   <div class="page-header">
-    <h2><i class="bi bi-geo-alt me-2"></i>Real-Time Vehicle Tracking</h2>
-    <p class="text-muted">Monitor all vehicle locations in real-time</p>
+    <h2><i class="bi bi-geo-alt-fill text-danger me-2"></i>Real-Time Active Vehicle Tracking</h2>
+    <p class="text-muted">Monitor only in-use vehicles on the road with live GPS coordinates</p>
   </div>
 
   <div class="tracking-content">
@@ -10,40 +10,47 @@
     </div>
 
     <div class="vehicle-sidebar">
-      <h5 class="sidebar-title">
-        <i class="bi bi-list me-2"></i>Active Vehicles
+      <h5 class="sidebar-title d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-broadcast me-2 text-primary"></i>In-Use Vehicles</span>
+        <span class="badge bg-warning text-dark">{{ vehicles.length }} Active</span>
       </h5>
       
       <div class="vehicle-list">
         <div *ngFor="let vehicle of vehicles" 
-             class="vehicle-list-item"
-             [class.busy]="vehicle.status === 'busy'"
-             [class.vacant]="vehicle.status === 'vacant'"
+             class="vehicle-list-item busy cursor-pointer"
              (click)="focusVehicle(vehicle)">
           <div class="vehicle-icon">
-            <i class="bi bi-car-front-fill"></i>
+            <i class="bi" [class.bi-car-front-fill]="!vehicle.is_parked" [class.bi-p-circle-fill]="vehicle.is_parked"></i>
           </div>
           <div class="vehicle-info">
-            <h6>{{ vehicle.model }}</h6>
-            <small>{{ vehicle.registration_number }}</small>
-            <div class="mt-1">
-              <span class="badge" 
-                    [class.bg-success]="vehicle.status === 'vacant'"
-                    [class.bg-warning]="vehicle.status === 'busy'">
-                {{ vehicle.status === 'busy' ? 'In Use' : 'Available' }}
+            <h6 class="mb-1 fw-bold">{{ vehicle.model }}</h6>
+            <small class="text-muted d-block font-monospace">{{ vehicle.registration_number }}</small>
+            <small class="text-primary d-block mt-1">
+              <i class="bi bi-person-fill me-1"></i>{{ vehicle.current_instructor?.full_name || 'Assigned Instructor' }}
+            </small>
+            <div class="mt-2">
+              <span class="badge" [class.bg-warning]="!vehicle.is_parked" [class.text-dark]="!vehicle.is_parked" [class.bg-info]="vehicle.is_parked">
+                {{ vehicle.is_parked ? '🅿️ Parked & Finished' : '🚗 In Use (On Road)' }}
               </span>
             </div>
-          </div>
-          <div class="vehicle-location">
-            <small class="text-muted">
-              {{ vehicle.latitude | number:'1.4-4' }}, {{ vehicle.longitude | number:'1.4-4' }}
-            </small>
+            <!-- Coordinates box -->
+            <div class="mt-2 p-2 bg-light border rounded">
+              <small class="text-danger fw-bold d-block">
+                <i class="bi bi-geo-alt-fill me-1"></i>Coordinates:
+              </small>
+              <small class="font-monospace text-dark fw-bold">
+                {{ vehicle.latitude | number:'1.5-5' }}, {{ vehicle.longitude | number:'1.5-5' }}
+              </small>
+            </div>
           </div>
         </div>
 
-        <div *ngIf="vehicles.length === 0" class="text-center py-4 text-muted">
-          <i class="bi bi-inbox display-4"></i>
-          <p class="mt-2">No vehicles registered</p>
+        <div *ngIf="vehicles.length === 0" class="text-center py-5 text-muted">
+          <i class="bi bi-car-front display-4 text-secondary"></i>
+          <h6 class="mt-3 fw-bold">No Vehicles Currently In Use</h6>
+          <p class="small text-muted px-3">
+            All vehicles are currently vacant in the garage. When an instructor begins an active driving session, the live vehicle and GPS track will appear here automatically.
+          </p>
         </div>
       </div>
     </div>

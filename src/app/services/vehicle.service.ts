@@ -102,4 +102,22 @@ export class VehicleService {
       map(response => response?.vehicle || response)
     );
   }
+
+  requestExtension(vehicleId: string, data: { minutes: number; reason?: string; latitude?: number; longitude?: number }): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/${vehicleId}/request-extension`, data).pipe(
+      tap(() => this.loadVehicles())
+    );
+  }
+
+  respondExtension(vehicleId: string, data: { approved: boolean; additional_minutes?: number; message?: string }): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/${vehicleId}/respond-extension`, data).pipe(
+      tap(() => this.loadVehicles())
+    );
+  }
+
+  reportParked(vehicleId: string, data: { latitude?: number; longitude?: number; note?: string }): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/${vehicleId}/report-parked`, data).pipe(
+      tap(() => this.loadVehicles())
+    );
+  }
 }

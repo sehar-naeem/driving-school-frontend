@@ -165,6 +165,35 @@ export class WebSocketService {
     });
   }
 
+  // ========== EXTENSION & PARKING EVENTS ==========
+
+  // Listen for extension requests from instructors
+  onExtensionRequested(): Observable<any> {
+    return new Observable(observer => {
+      this.socket?.on('extension:requested', (data: any) => {
+        observer.next(data);
+      });
+    });
+  }
+
+  // Listen for extension response from admin
+  onExtensionResponded(): Observable<any> {
+    return new Observable(observer => {
+      this.socket?.on('extension:responded', (data: any) => {
+        observer.next(data);
+      });
+    });
+  }
+
+  // Listen for vehicle parked reports
+  onVehicleParked(): Observable<any> {
+    return new Observable(observer => {
+      this.socket?.on('vehicle:parked', (data: any) => {
+        observer.next(data);
+      });
+    });
+  }
+
   // ========== EMIT EVENTS ==========
 
   // Emit location update (from instructor app)
@@ -180,5 +209,20 @@ export class WebSocketService {
   // Emit notification acknowledgment
   emitNotificationAck(notificationId: string): void {
     this.socket?.emit('notification:acknowledged', { notification_id: notificationId });
+  }
+
+  // Emit extension request from instructor
+  emitExtensionRequest(data: any): void {
+    this.socket?.emit('extension:request', data);
+  }
+
+  // Emit extension response from admin
+  emitExtensionResponse(data: any): void {
+    this.socket?.emit('extension:respond', data);
+  }
+
+  // Emit vehicle parked report
+  emitVehicleParked(data: any): void {
+    this.socket?.emit('vehicle:park', data);
   }
 }

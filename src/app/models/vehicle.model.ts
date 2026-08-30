@@ -16,7 +16,8 @@ export interface Vehicle {
   };
   time_slot?: number | null;
   session_start?: Date | null;
-  latitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   last_location_update?: Date;
   is_parked?: boolean;
   parked_at?: Date | null;

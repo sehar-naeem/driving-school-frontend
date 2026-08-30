@@ -64,11 +64,16 @@ export const routes: Routes = [
         loadComponent: () => import('./complaints-admin/complaints-admin.component')
           .then(m => m.ComplaintsAdminComponent)
       },
-      // Google Maps Tracking - Real-time vehicle tracking
+      // Live Real-Time Vehicle Tracking
       {
         path: 'tracking',
         loadComponent: () => import('./tracking-map/tracking-map.component')
           .then(m => m.TrackingMapComponent)
+      },
+      {
+        path: 'tracking-map',
+        redirectTo: 'tracking',
+        pathMatch: 'full'
       }
     ]
   },

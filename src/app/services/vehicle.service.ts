@@ -142,4 +142,8 @@ export class VehicleService {
   dismissVehicleEvent(vehicleId: string): Observable<any> {
     return this.http.post<any>(`${this.API_URL}/${vehicleId}/dismiss-event`, {});
   }
+
+  dismissExtensionResponse(vehicleId: string): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/${vehicleId}/dismiss-extension-response`, {});
+  }
 }

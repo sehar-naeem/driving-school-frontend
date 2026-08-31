@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -77,13 +77,16 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   isCarReportedParked: boolean = false;
 
   private timerInterval?: Subscription;
+  private syncPollInterval?: Subscription;
   private wsSubscriptions: Subscription[] = [];
 
   constructor(
     private vehicleService: VehicleService,
     private complaintService: ComplaintService,
     private authService: AuthService,
-    private wsService: WebSocketService
+    private wsService: WebSocketService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -95,12 +98,20 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     this.timerInterval = interval(1000).subscribe(() => {
       this.checkSessionTimers();
     });
+
+    // Background sync poll every 2.5 seconds to guarantee instant extension responses from server
+    this.syncPollInterval = interval(2500).subscribe(() => {
+      this.loadDashboardData();
+    });
   }
 
   ngOnDestroy(): void {
     this.stopGpsSharing();
     if (this.timerInterval) {
       this.timerInterval.unsubscribe();
+    }
+    if (this.syncPollInterval) {
+      this.syncPollInterval.unsubscribe();
     }
     this.wsSubscriptions.forEach(sub => sub.unsubscribe());
   }
@@ -135,6 +146,36 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
         }
         if (this.currentVehicle.extension_request?.status === 'pending') {
           this.extensionPending = true;
+        } else {
+          this.extensionPending = false;
+        }
+
+        // 🔔 Check if Admin responded to extension (Approved or Declined)
+        const extReq = this.currentVehicle.extension_request;
+        if (extReq && (extReq.status === 'approved' || extReq.status === 'rejected') && (extReq as any).dismissed_by_instructor === false) {
+          this.extensionPending = false;
+          this.showExtensionModal = false;
+
+          if (extReq.status === 'approved') {
+            this.extensionResultType = 'approved';
+            this.extensionResultData = {
+              minutes: (extReq as any).admin_minutes || extReq.minutes || 15,
+              message: (extReq as any).admin_message || 'Extension approved by Admin. Please complete the lesson and return safely.'
+            };
+            this.showExtensionResultModal = true;
+            this.warningModalDismissed = false;
+            this.expiredModalDismissed = false;
+            this.showExpiredModal = false;
+            this.showWarningModal = false;
+          } else {
+            this.extensionResultType = 'declined';
+            this.extensionResultData = {
+              minutes: 0,
+              message: (extReq as any).admin_message || 'Extension request declined by Admin. Please return to the school as soon as possible.'
+            };
+            this.showExtensionResultModal = true;
+          }
+          this.cdr.detectChanges();
         }
 
         // If allocated and not yet acknowledged, show the new allocation popup
@@ -142,6 +183,7 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
           this.showNewAllocationModal = true;
         }
       }
+      this.cdr.detectChanges();
     });
 
     // Load instructor's complaints
@@ -150,6 +192,7 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
       this.stats.totalComplaints = complaints.length;
       this.stats.pendingComplaints = complaints.filter((c: Complaint) => c.status === 'pending').length;
       this.stats.resolvedComplaints = complaints.filter((c: Complaint) => c.status === 'resolved').length;
+      this.cdr.detectChanges();
     });
   }
 
@@ -523,7 +566,14 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   }
 
   closeExtensionResultModal(): void {
+    if (this.currentVehicle) {
+      const vehicleId = this.getEntityId(this.currentVehicle);
+      if (vehicleId) {
+        this.vehicleService.dismissExtensionResponse(vehicleId).subscribe({ error: () => {} });
+      }
+    }
     this.showExtensionResultModal = false;
+    this.cdr.detectChanges();
   }
 
   submitParkedReport(): void {

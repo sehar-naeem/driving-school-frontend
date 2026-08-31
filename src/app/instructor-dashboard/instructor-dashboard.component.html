@@ -64,12 +64,18 @@
         <i class="bi bi-car-front me-2"></i>
         Current Vehicle Allocation
       </h2>
-      <div class="d-flex gap-2">
+      <div class="d-flex flex-wrap gap-2">
         <span *ngIf="currentVehicle.instructor_status === 'on_way' || currentVehicle.instructor_status === 'in_lesson'" class="badge bg-success py-2 px-3">
           <i class="bi bi-geo-alt-fill me-1"></i>On My Way / Lesson Active
         </span>
         <span *ngIf="extensionPending" class="badge bg-warning text-dark py-2 px-3">
           <i class="bi bi-hourglass-split me-1"></i>Extension Request Pending Admin Approval
+        </span>
+        <span *ngIf="!extensionPending && currentVehicle.extension_request?.status === 'approved'" class="badge bg-success py-2 px-3">
+          <i class="bi bi-clock-history me-1"></i>+{{ currentVehicle.extension_request?.admin_minutes || 15 }}m Extension Granted
+        </span>
+        <span *ngIf="!extensionPending && currentVehicle.extension_request?.status === 'rejected'" class="badge bg-danger py-2 px-3">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>Extension Declined — Return Promptly
         </span>
         <span *ngIf="isCarReportedParked" class="badge bg-info py-2 px-3 text-dark">
           <i class="bi bi-p-circle-fill me-1"></i>Vehicle Parked & Reported
@@ -92,12 +98,20 @@
             <span class="detail-value font-monospace">{{ currentVehicle.registration_number }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Session Duration</span>
+            <span class="detail-label">Total Duration</span>
             <span class="detail-value">{{ currentVehicle.time_slot }} minutes</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Time Remaining</span>
-            <span class="detail-value time-remaining fw-bold text-danger">{{ getRemainingTime() }}</span>
+            <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
+              <span class="detail-value time-remaining fw-bold text-danger">{{ getRemainingTime() }}</span>
+              <span *ngIf="currentVehicle.extension_request?.status === 'approved'" class="badge bg-success py-1 px-2">
+                <i class="bi bi-clock-history me-1"></i>+{{ currentVehicle.extension_request?.admin_minutes || currentVehicle.extension_request?.minutes || 15 }}m Added
+              </span>
+              <span *ngIf="currentVehicle.extension_request?.status === 'rejected'" class="badge bg-danger py-1 px-2">
+                <i class="bi bi-x-circle me-1"></i>Declined (Return to School)
+              </span>
+            </div>
           </div>
           <div class="detail-item">
             <span class="detail-label">Ride Status</span>

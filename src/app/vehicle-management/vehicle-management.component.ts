@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { VehicleService } from '../services/vehicle.service';
 import { UserService } from '../services/user.service';
 import { WebSocketService } from '../services/websocket.service';
@@ -85,6 +85,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     private timerService: VehicleTimerService,
     private wsService: WebSocketService,
     private router: Router,
+    private route: ActivatedRoute,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -97,6 +98,20 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     // Real-time updates
     this.vehicleService.vehicles$.subscribe(() => {
       this.loadVehicles();
+    });
+
+    // Handle reallocate query parameter to auto-open allocate modal
+    this.route.queryParams.subscribe(params => {
+      if (params['reallocate']) {
+        const targetId = params['reallocate'];
+        this.activeTab = 'vacant';
+        setTimeout(() => {
+          const target = this.vacantVehicles.find(v => (v._id || v.id)?.toString() === targetId) || this.vacantVehicles[0];
+          if (target) {
+            this.openAllocateModal(target);
+          }
+        }, 500);
+      }
     });
 
     // Subscribe to timer updates

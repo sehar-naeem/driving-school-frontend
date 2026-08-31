@@ -108,50 +108,29 @@
           </div>
         </div>
 
-        <!-- Live Controls & Quick Action Buttons -->
-        <div class="mt-4 pt-3 border-top">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <div>
-              <h6 class="mb-1 fw-bold">
-                <i class="bi bi-broadcast me-1 text-primary"></i>Live GPS Sharing to Admin
-              </h6>
-              <p class="small text-muted mb-0" *ngIf="!isSharingGps">
-                Broadcasting GPS lets the Admin track your live location and route on the map.
-              </p>
-              <p class="small text-success mb-0 fw-bold" *ngIf="isSharingGps">
-                <i class="bi bi-record-circle-fill text-danger me-1"></i>
-                Live GPS Active: {{ gpsLatitude | number:'1.4-4' }}, {{ gpsLongitude | number:'1.4-4' }}
-                <span *ngIf="gpsAccuracy" class="badge bg-secondary ms-1">&plusmn;{{ gpsAccuracy }}m</span>
-                <span *ngIf="gpsSpeed !== null" class="badge bg-info text-dark ms-1">{{ gpsSpeed }} km/h</span>
-              </p>
-              <div *ngIf="gpsError" class="text-danger small mt-1">
-                <i class="bi bi-exclamation-circle me-1"></i>{{ gpsError }}
-              </div>
-            </div>
+        <!-- Quick Action Buttons -->
+        <div class="mt-4 pt-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <span *ngIf="!isCarReportedParked" class="text-muted small">
+              <i class="bi bi-shield-check text-success me-1"></i>Automatic tracking active for this session.
+            </span>
+            <span *ngIf="isCarReportedParked" class="text-success small fw-bold">
+              <i class="bi bi-check-circle-fill me-1"></i>This vehicle has been returned and safely parked.
+            </span>
+          </div>
 
-            <div class="d-flex flex-wrap gap-2">
-              <button 
-                type="button" 
-                class="btn"
-                [class.btn-success]="!isSharingGps"
-                [class.btn-danger]="isSharingGps"
-                (click)="toggleGpsSharing()">
-                <i class="bi" [class.bi-geo-alt-fill]="!isSharingGps" [class.bi-stop-circle-fill]="isSharingGps"></i>
-                {{ isSharingGps ? 'Stop GPS Broadcast' : 'Start GPS Broadcast' }}
-              </button>
+          <div class="d-flex flex-wrap gap-2">
+            <button *ngIf="!isCarReportedParked" type="button" class="btn btn-warning text-dark fw-bold" (click)="openExtensionModal()">
+              <i class="bi bi-clock-history me-1"></i>Extend Time
+            </button>
 
-              <button *ngIf="!isCarReportedParked" type="button" class="btn btn-outline-warning text-dark fw-bold" (click)="openExtensionModal()">
-                <i class="bi bi-clock-history me-1"></i>Extend Time
-              </button>
+            <button *ngIf="!isCarReportedParked" type="button" class="btn btn-success fw-bold" (click)="openParkedModal()">
+              <i class="bi bi-check-circle-fill me-1"></i>Session Completed & Parked
+            </button>
 
-              <button *ngIf="!isCarReportedParked" type="button" class="btn btn-outline-info text-dark fw-bold" (click)="openParkedModal()">
-                <i class="bi bi-p-circle-fill me-1"></i>Report Parked
-              </button>
-
-              <span *ngIf="isCarReportedParked" class="badge bg-success py-2 px-3 fs-6 d-flex align-items-center">
-                <i class="bi bi-check-circle-fill me-1"></i>Session Completed & Parked
-              </span>
-            </div>
+            <span *ngIf="isCarReportedParked" class="badge bg-success py-2 px-3 fs-6 d-flex align-items-center">
+              <i class="bi bi-check-circle-fill me-1"></i>Session Completed & Parked
+            </span>
           </div>
         </div>
       </div>
@@ -451,8 +430,57 @@
     </div>
   </div>
 
+  <!-- 🔔 ADMIN EXTENSION RESPONSE NOTICE MODAL (Approved or Declined) -->
+  <div class="modal fade" [class.show]="showExtensionResultModal" [style.display]="showExtensionResultModal ? 'block' : 'none'" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow-lg" [class.border-success]="extensionResultType === 'approved'" [class.border-danger]="extensionResultType === 'declined'">
+        <div class="modal-header text-white" [class.bg-success]="extensionResultType === 'approved'" [class.bg-danger]="extensionResultType === 'declined'">
+          <h5 class="modal-title fw-bold">
+            <i class="bi" [class.bi-check-circle-fill]="extensionResultType === 'approved'" [class.bi-x-circle-fill]="extensionResultType === 'declined'" me-2></i>
+            {{ extensionResultType === 'approved' ? '🎉 Time Extension Approved!' : '⚠️ Extension Request Declined' }}
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="closeExtensionResultModal()"></button>
+        </div>
+        <div class="modal-body text-center py-4">
+          <div class="rounded-circle p-3 d-inline-flex mb-3" 
+               [class.bg-success]="extensionResultType === 'approved'" [class.bg-opacity-10]="extensionResultType === 'approved'" [class.text-success]="extensionResultType === 'approved'"
+               [class.bg-danger]="extensionResultType === 'declined'" [class.bg-opacity-10]="extensionResultType === 'declined'" [class.text-danger]="extensionResultType === 'declined'">
+            <i class="bi fs-1" [class.bi-clock-history]="extensionResultType === 'approved'" [class.bi-slash-circle]="extensionResultType === 'declined'"></i>
+          </div>
+
+          <h4 class="fw-bold mb-2 text-dark" *ngIf="extensionResultType === 'approved'">
+            +{{ extensionResultData.minutes }} Extra Minutes Granted
+          </h4>
+          <h4 class="fw-bold mb-2 text-dark" *ngIf="extensionResultType === 'declined'">
+            Extension Declined by Admin
+          </h4>
+
+          <div class="p-3 bg-light border rounded text-start mb-3" *ngIf="extensionResultData.message">
+            <strong class="d-block text-muted small mb-1"><i class="bi bi-chat-left-text me-1"></i>Admin Message / Instructions:</strong>
+            <p class="mb-0 text-dark fw-semibold">{{ extensionResultData.message }}</p>
+          </div>
+
+          <p class="text-muted small mb-0" *ngIf="extensionResultType === 'approved'">
+            Your timer has been updated. Please complete the driving lesson and return safely.
+          </p>
+          <p class="text-danger small mb-0 fw-bold" *ngIf="extensionResultType === 'declined'">
+            Please conclude the current lesson and return the vehicle to the school grounds promptly.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn fw-bold w-100" 
+                  [class.btn-success]="extensionResultType === 'approved'" 
+                  [class.btn-primary]="extensionResultType === 'declined'"
+                  (click)="closeExtensionResultModal()">
+            {{ extensionResultType === 'approved' ? 'Continue Lesson' : 'Understood, Returning to School' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Backdrop -->
   <div class="modal-backdrop fade" 
-       [class.show]="showNewAllocationModal || showWarningModal || showExpiredModal || showExtensionModal || showParkedModal" 
-       *ngIf="showNewAllocationModal || showWarningModal || showExpiredModal || showExtensionModal || showParkedModal"></div>
+       [class.show]="showNewAllocationModal || showWarningModal || showExpiredModal || showExtensionModal || showParkedModal || showExtensionResultModal" 
+       *ngIf="showNewAllocationModal || showWarningModal || showExpiredModal || showExtensionModal || showParkedModal || showExtensionResultModal"></div>
 </div>

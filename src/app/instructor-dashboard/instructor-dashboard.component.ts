@@ -65,6 +65,11 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   extensionPending: boolean = false;
   extensionMessage: string = '';
 
+  // Admin Extension Response Notice Modal
+  showExtensionResultModal: boolean = false;
+  extensionResultType: 'approved' | 'declined' = 'approved';
+  extensionResultData: { minutes: number; message: string } = { minutes: 15, message: '' };
+
   // Parked Report Modal & State
   showParkedModal: boolean = false;
   parkedNote: string = 'Car parked safely at the driving school parking lot.';
@@ -166,27 +171,44 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     // Listen for extension response from Admin
     const extRespSub = this.wsService.onExtensionResponded().subscribe((data: any) => {
       const vehicleId = this.getEntityId(this.currentVehicle);
-      if (vehicleId && data.vehicle_id?.toString() === vehicleId) {
+      const dataVehicleId = (data?.vehicle_id || data?.vehicleId || data?.id)?.toString();
+
+      console.log('⚡ Extension response received on instructor dashboard:', data);
+
+      if (!vehicleId || !dataVehicleId || dataVehicleId === vehicleId) {
         this.extensionPending = false;
-        const adminNote = data.message ? `\n\nAdmin Note: "${data.message}"` : '';
-        if (data.approved) {
-          this.extensionMessage = `🎉 Admin approved your extension (+${data.additional_minutes} mins)! ${data.message || ''}`;
+        this.showExtensionModal = false;
+
+        const isApproved = data.approved === true;
+        const extraMins = data.additional_minutes || 15;
+
+        if (isApproved) {
+          this.extensionResultType = 'approved';
+          this.extensionResultData = {
+            minutes: extraMins,
+            message: data.message || 'Approved. Please complete the lesson and return safely.'
+          };
+          this.showExtensionResultModal = true;
           this.warningModalDismissed = false;
           this.expiredModalDismissed = false;
           this.showExpiredModal = false;
-          this.loadDashboardData();
-          alert(`✅ Admin Approved Extension (+${data.additional_minutes} mins)!${adminNote}`);
+          this.showWarningModal = false;
         } else {
-          this.extensionMessage = `❌ Extension declined by Admin.${adminNote}`;
-          alert(`❌ Admin declined the extension request.${adminNote}`);
+          this.extensionResultType = 'declined';
+          this.extensionResultData = {
+            minutes: 0,
+            message: data.message || 'Extension request declined by Admin. Please return to the school immediately.'
+          };
+          this.showExtensionResultModal = true;
         }
+        this.loadDashboardData();
       }
     });
     this.wsSubscriptions.push(extRespSub);
   }
 
   getRemainingSeconds(): number {
-    if (!this.currentVehicle?.session_start || !this.currentVehicle?.time_slot) {
+    if (!this.currentVehicle?.session_start || !this.currentVehicle?.time_slot || this.isCarReportedParked || this.currentVehicle?.is_parked) {
       return 0;
     }
     const startTime = new Date(this.currentVehicle.session_start).getTime();
@@ -201,6 +223,10 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   }
 
   getRemainingTime(): string {
+    if (this.isCarReportedParked || this.currentVehicle?.is_parked) {
+      return 'Completed & Parked';
+    }
+
     if (!this.currentVehicle?.session_start || !this.currentVehicle?.time_slot) {
       return 'N/A';
     }
@@ -224,7 +250,11 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
    * Monitor timer to trigger 5-minute warning and expired popup
    */
   private checkSessionTimers(): void {
-    if (!this.currentVehicle || this.isCarReportedParked) return;
+    if (!this.currentVehicle || this.isCarReportedParked || this.currentVehicle.is_parked) {
+      this.showWarningModal = false;
+      this.showExpiredModal = false;
+      return;
+    }
 
     const remainingSec = this.getRemainingSeconds();
     const totalSlot = this.currentVehicle.time_slot || 35;
@@ -234,12 +264,12 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     const is5MinWarning = !isTestSlot && remainingSec <= 300 && remainingSec > 0;
     const isTestWarning = isTestSlot && remainingSec <= 30 && remainingSec > 0;
 
-    if ((is5MinWarning || isTestWarning) && !this.warningModalDismissed && !this.showWarningModal) {
+    if ((is5MinWarning || isTestWarning) && !this.warningModalDismissed && !this.showWarningModal && !this.showExtensionResultModal) {
       this.showWarningModal = true;
     }
 
     // 2. Check for Expired (0 seconds remaining)
-    if (remainingSec <= 0 && !this.expiredModalDismissed && !this.showExpiredModal) {
+    if (remainingSec <= 0 && !this.expiredModalDismissed && !this.showExpiredModal && !this.showExtensionResultModal && !this.isCarReportedParked) {
       this.showWarningModal = false;
       this.showExpiredModal = true;
     }
@@ -442,11 +472,16 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
   openParkedModal(): void {
     this.showWarningModal = false;
     this.showExpiredModal = false;
+    this.showExtensionModal = false;
     this.showParkedModal = true;
   }
 
   closeParkedModal(): void {
     this.showParkedModal = false;
+  }
+
+  closeExtensionResultModal(): void {
+    this.showExtensionResultModal = false;
   }
 
   submitParkedReport(): void {
@@ -468,6 +503,12 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
         this.parkedLoading = false;
         this.isCarReportedParked = true;
         this.closeParkedModal();
+        this.showWarningModal = false;
+        this.showExpiredModal = false;
+        this.showExtensionModal = false;
+        this.showExtensionResultModal = false;
+        this.warningModalDismissed = true;
+        this.expiredModalDismissed = true;
         this.stopGpsSharing();
         this.wsService.emitVehicleParked({
           vehicle_id: vehicleId,

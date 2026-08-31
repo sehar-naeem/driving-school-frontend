@@ -3,7 +3,7 @@ import { User } from "./user.model";
 
 export interface Complaint {
   _id?: string;
-  id?: string | number;
+  id?: any;
   vehicle_id?: any;
   vehicle?: Vehicle;
   instructor_id?: any;
@@ -21,7 +21,7 @@ export interface Complaint {
 }
 
 export interface ComplaintCreateRequest {
-  vehicle_id: string | number;
+  vehicle_id: any;
   issue_type: string;
   title: string;
   description: string;

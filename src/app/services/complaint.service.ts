@@ -50,7 +50,7 @@ export class ComplaintService {
     );
   }
 
-  updateComplaintStatus(id: number, status: string, adminResponse?: string): Observable<Complaint> {
+  updateComplaintStatus(id: any, status: string, adminResponse?: string): Observable<Complaint> {
     return this.http.patch<any>(`${this.API_URL}/${id}/status`, { 
       status, 
       admin_response: adminResponse 
@@ -60,7 +60,7 @@ export class ComplaintService {
     );
   }
 
-  deleteComplaint(id: number): Observable<void> {
+  deleteComplaint(id: any): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/${id}`).pipe(
       tap(() => this.loadComplaints())
     );

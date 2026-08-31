@@ -76,8 +76,11 @@ export class ComplaintsAdminComponent implements OnInit {
 
   updateComplaintStatus(status: string): void {
     if (this.selectedComplaint) {
+      const complaintId = this.selectedComplaint._id || this.selectedComplaint.id;
+      if (!complaintId) return;
+
       this.complaintService.updateComplaintStatus(
-        this.selectedComplaint.id,
+        complaintId,
         status,
         this.adminResponse
       ).subscribe(() => {
@@ -87,7 +90,7 @@ export class ComplaintsAdminComponent implements OnInit {
     }
   }
 
-  deleteComplaint(id: number): void {
+  deleteComplaint(id: any): void {
     if (confirm('Are you sure you want to delete this complaint?')) {
       this.complaintService.deleteComplaint(id).subscribe(() => {
         this.loadComplaints();

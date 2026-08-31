@@ -265,6 +265,10 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     return this.extensionPending || (this.currentVehicle?.extension_request?.status === 'pending');
   }
 
+  getGrantedExtensionMinutes(): number {
+    return this.currentVehicle?.extension_request?.admin_minutes || this.currentVehicle?.extension_request?.minutes || 15;
+  }
+
   getRemainingTime(): string {
     if (this.isCarReportedParked || this.currentVehicle?.is_parked) {
       return 'Completed & Parked';

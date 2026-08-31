@@ -72,7 +72,7 @@
           <i class="bi bi-hourglass-split me-1"></i>Extension Request Pending Admin Approval
         </span>
         <span *ngIf="!extensionPending && currentVehicle.extension_request?.status === 'approved'" class="badge bg-success py-2 px-3">
-          <i class="bi bi-clock-history me-1"></i>+{{ currentVehicle.extension_request?.admin_minutes || 15 }}m Extension Granted
+          <i class="bi bi-clock-history me-1"></i>+{{ getGrantedExtensionMinutes() }}m Extension Granted
         </span>
         <span *ngIf="!extensionPending && currentVehicle.extension_request?.status === 'rejected'" class="badge bg-danger py-2 px-3">
           <i class="bi bi-exclamation-triangle-fill me-1"></i>Extension Declined — Return Promptly
@@ -106,7 +106,7 @@
             <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
               <span class="detail-value time-remaining fw-bold text-danger">{{ getRemainingTime() }}</span>
               <span *ngIf="currentVehicle.extension_request?.status === 'approved'" class="badge bg-success py-1 px-2">
-                <i class="bi bi-clock-history me-1"></i>+{{ currentVehicle.extension_request?.admin_minutes || currentVehicle.extension_request?.minutes || 15 }}m Added
+                <i class="bi bi-clock-history me-1"></i>+{{ getGrantedExtensionMinutes() }}m Added
               </span>
               <span *ngIf="currentVehicle.extension_request?.status === 'rejected'" class="badge bg-danger py-1 px-2">
                 <i class="bi bi-x-circle me-1"></i>Declined (Return to School)

@@ -194,6 +194,11 @@ export class WebSocketService {
     this.socket?.emit('instructor:on_way', data);
   }
 
+  emitAllocationDeclined(data: any): void {
+    this.connect();
+    this.socket?.emit('allocation:declined', data);
+  }
+
   emitInstructorArrival(allocationId: string): void {
     this.connect();
     this.socket?.emit('instructor:arrival', { allocation_id: allocationId });

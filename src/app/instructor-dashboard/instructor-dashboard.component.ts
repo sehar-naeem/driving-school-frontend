@@ -322,6 +322,19 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const regNum = this.currentVehicle.registration_number;
+    const modelName = this.currentVehicle.model;
+    const instName = this.currentUser?.full_name || 'Instructor';
+
+    // Broadcast client-side immediately so Admin gets popup without any delay
+    this.wsService.emitAllocationDeclined({
+      vehicle_id: vehicleId,
+      registration_number: regNum,
+      model: modelName,
+      instructor: instName,
+      reason: 'Instructor is unavailable / declined lesson'
+    });
+
     this.vehicleService.declineAllocation(vehicleId, {
       reason: 'Instructor is unavailable / declined lesson'
     }).subscribe({

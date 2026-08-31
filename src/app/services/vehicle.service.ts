@@ -138,4 +138,8 @@ export class VehicleService {
       tap(() => this.loadVehicles())
     );
   }
+
+  dismissVehicleEvent(vehicleId: string): Observable<any> {
+    return this.http.post<any>(`${this.API_URL}/${vehicleId}/dismiss-event`, {});
+  }
 }

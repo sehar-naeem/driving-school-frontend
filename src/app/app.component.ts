@@ -149,47 +149,95 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Watch for pending extensions every 4 seconds for Admins
-   * Guarantees popups appear even if websocket reconnects or during page loads
+   * Watch for pending extensions and undismissed vehicle events every 2.5 seconds for Admins
+   * Guarantees 100% reliable popups regardless of WebSocket state
    */
   private startPendingExtensionWatcher(): void {
     const interval = setInterval(() => {
-      if (this.showLayout && this.authService.isAdmin() && !this.showGlobalExtensionModal) {
-        this.checkPendingExtensions();
+      if (this.showLayout && this.authService.isAdmin()) {
+        this.checkAdminNotifications();
       }
-    }, 4000);
+    }, 2500);
 
     this.subscriptions.push({
       unsubscribe: () => clearInterval(interval)
     } as any);
   }
 
-  private checkPendingExtensions(): void {
+  private checkAdminNotifications(): void {
     if (!this.authService.isAdmin()) return;
 
-    this.vehicleService.getBusyVehicles().subscribe({
-      next: (vehicles: any[]) => {
-        const pendingVehicle = vehicles.find(v => v.extension_request?.status === 'pending' && !v.is_parked);
-        if (pendingVehicle && !this.showGlobalExtensionModal) {
-          const instructorName = pendingVehicle.current_instructor?.full_name || (typeof pendingVehicle.current_instructor_id === 'object' ? pendingVehicle.current_instructor_id?.full_name : null) || 'Assigned Instructor';
-          this.globalExtensionRequest = {
-            vehicle_id: pendingVehicle._id || pendingVehicle.id,
-            registration_number: pendingVehicle.registration_number,
-            model: pendingVehicle.model,
-            instructor: instructorName,
-            minutes: pendingVehicle.extension_request?.minutes || 15,
-            reason: pendingVehicle.extension_request?.reason || 'Instructor requested extra lesson time',
-            latitude: pendingVehicle.latitude,
-            longitude: pendingVehicle.longitude
-          };
-          this.adminReplyMinutes = Number(pendingVehicle.extension_request?.minutes) || 15;
-          this.adminReplyMessage = 'Approved. Please complete the lesson and return to school as early as you can.';
-          this.showGlobalExtensionModal = true;
-          this.cdr.detectChanges();
+    this.vehicleService.getAllVehicles().subscribe({
+      next: (response: any) => {
+        const vehicles: any[] = Array.isArray(response) ? response : (response?.vehicles || response?.data || []);
+
+        // 1. Check for pending extension requests
+        if (!this.showGlobalExtensionModal) {
+          const pendingVehicle = vehicles.find(v => v.extension_request?.status === 'pending' && !v.is_parked);
+          if (pendingVehicle) {
+            const instructorName = pendingVehicle.current_instructor?.full_name || (typeof pendingVehicle.current_instructor_id === 'object' ? pendingVehicle.current_instructor_id?.full_name : null) || 'Assigned Instructor';
+            this.globalExtensionRequest = {
+              vehicle_id: pendingVehicle._id || pendingVehicle.id,
+              registration_number: pendingVehicle.registration_number,
+              model: pendingVehicle.model,
+              instructor: instructorName,
+              minutes: pendingVehicle.extension_request?.minutes || 15,
+              reason: pendingVehicle.extension_request?.reason || 'Instructor requested extra lesson time',
+              latitude: pendingVehicle.latitude,
+              longitude: pendingVehicle.longitude
+            };
+            this.adminReplyMinutes = Number(pendingVehicle.extension_request?.minutes) || 15;
+            this.adminReplyMessage = 'Approved. Please complete the lesson and return to school as early as you can.';
+            this.showGlobalExtensionModal = true;
+            this.cdr.detectChanges();
+            return;
+          }
+        }
+
+        // 2. Check for undismissed Lesson Started events
+        if (!this.showLessonStartedModal && !this.showAllocationDeclinedModal && !this.showGlobalExtensionModal) {
+          const lessonStartedVehicle = vehicles.find(v => v.last_event?.event_type === 'lesson_started' && v.last_event?.dismissed_by_admin === false);
+          if (lessonStartedVehicle) {
+            console.log('🚗 Server persistent event detected: Lesson Started for', lessonStartedVehicle.registration_number);
+            this.lessonStartedData = {
+              vehicle_id: lessonStartedVehicle._id || lessonStartedVehicle.id,
+              registration_number: lessonStartedVehicle.registration_number,
+              model: lessonStartedVehicle.model,
+              instructor: lessonStartedVehicle.last_event.instructor || 'Instructor',
+              time_slot: lessonStartedVehicle.time_slot || 35,
+              latitude: lessonStartedVehicle.latitude,
+              longitude: lessonStartedVehicle.longitude
+            };
+            this.showLessonStartedModal = true;
+            this.cdr.detectChanges();
+            return;
+          }
+        }
+
+        // 3. Check for undismissed Allocation Declined events
+        if (!this.showAllocationDeclinedModal && !this.showLessonStartedModal && !this.showGlobalExtensionModal) {
+          const declinedVehicle = vehicles.find(v => v.last_event?.event_type === 'allocation_declined' && v.last_event?.dismissed_by_admin === false);
+          if (declinedVehicle) {
+            console.log('⚠️ Server persistent event detected: Allocation Declined for', declinedVehicle.registration_number);
+            this.allocationDeclinedData = {
+              vehicle_id: declinedVehicle._id || declinedVehicle.id,
+              registration_number: declinedVehicle.registration_number,
+              model: declinedVehicle.model,
+              instructor: declinedVehicle.last_event.instructor || 'Instructor',
+              reason: declinedVehicle.last_event.reason || 'Instructor is unavailable'
+            };
+            this.showAllocationDeclinedModal = true;
+            this.cdr.detectChanges();
+            return;
+          }
         }
       },
       error: () => {}
     });
+  }
+
+  private checkPendingExtensions(): void {
+    this.checkAdminNotifications();
   }
 
   // Toggle sidebar collapse/expand
@@ -268,6 +316,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // ===== GLOBAL LESSON STARTED MODAL ACTIONS =====
   closeLessonStartedModal(): void {
+    const vehicleId = (this.lessonStartedData?.vehicle_id || this.lessonStartedData?.id)?.toString();
+    if (vehicleId) {
+      this.vehicleService.dismissVehicleEvent(vehicleId).subscribe({ error: () => {} });
+    }
     this.showLessonStartedModal = false;
     this.lessonStartedData = null;
     this.cdr.detectChanges();
@@ -285,6 +337,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // ===== GLOBAL ALLOCATION DECLINED MODAL ACTIONS =====
   closeAllocationDeclinedModal(): void {
+    const vehicleId = (this.allocationDeclinedData?.vehicle_id || this.allocationDeclinedData?.id)?.toString();
+    if (vehicleId) {
+      this.vehicleService.dismissVehicleEvent(vehicleId).subscribe({ error: () => {} });
+    }
     this.showAllocationDeclinedModal = false;
     this.allocationDeclinedData = null;
     this.cdr.detectChanges();

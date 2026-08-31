@@ -187,20 +187,33 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  isPendingAcceptance(vehicle: Vehicle): boolean {
+    return !vehicle.is_parked && (!vehicle.session_start || vehicle.instructor_status === 'assigned');
+  }
+
   private createMarkerForVehicle(vehicle: Vehicle): any {
     const vehicleId = (vehicle.id || vehicle._id)?.toString();
     if (!vehicleId) return null;
 
-    if (!vehicle.latitude || !vehicle.longitude) return null;
+    const isPending = this.isPendingAcceptance(vehicle);
+    const isParked = vehicle.is_parked;
 
-    const lat = Number(vehicle.latitude);
-    const lng = Number(vehicle.longitude);
+    // Use garage base coordinates if pending acceptance or if coordinates are missing
+    const lat = isPending ? 33.5651 : (Number(vehicle.latitude) || 33.5651);
+    const lng = isPending ? 73.0169 : (Number(vehicle.longitude) || 73.0169);
 
     if (isNaN(lat) || isNaN(lng)) return null;
 
-    const isParked = vehicle.is_parked;
-    const markerColor = isParked ? '#0dcaf0' : '#ffc107'; // Cyan for parked, Amber for driving
-    const iconClass = isParked ? 'bi-p-circle-fill' : 'bi-car-front-fill';
+    let markerColor = '#ffc107'; // Amber for driving
+    let iconClass = 'bi-car-front-fill';
+
+    if (isPending) {
+      markerColor = '#6f42c1'; // Purple for pending in garage
+      iconClass = 'bi-hourglass-split';
+    } else if (isParked) {
+      markerColor = '#0dcaf0'; // Cyan for parked
+      iconClass = 'bi-p-circle-fill';
+    }
 
     // Custom HTML Marker Icon
     const customIcon = L.divIcon({
@@ -208,7 +221,7 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
       html: `
         <div style="
           background-color: ${markerColor};
-          color: #000000;
+          color: #ffffff;
           width: 42px;
           height: 42px;
           border-radius: 50%;
@@ -233,8 +246,8 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.markers.set(vehicleId, marker);
 
-    // Initialize vehicle movement trail
-    if (!this.trails.has(vehicleId)) {
+    // Initialize vehicle movement trail (only if active on road)
+    if (!isPending && !this.trails.has(vehicleId)) {
       const trail = L.polyline([[lat, lng]], {
         color: '#0d6efd',
         weight: 4,
@@ -259,20 +272,34 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getInfoWindowContent(vehicle: Vehicle): string {
+    const isPending = this.isPendingAcceptance(vehicle);
     const isParked = vehicle.is_parked;
-    const statusText = isParked ? 'Parked & Completed' : 'In Use (On Road)';
-    const statusBg = isParked ? '#0dcaf0' : '#ffc107';
+
+    let statusText = 'In Use (On Road)';
+    let statusBg = '#ffc107';
+    let statusColor = '#000000';
+
+    if (isPending) {
+      statusText = '⏳ Pending (In Garage)';
+      statusBg = '#6f42c1';
+      statusColor = '#ffffff';
+    } else if (isParked) {
+      statusText = '🅿️ Parked & Completed';
+      statusBg = '#0dcaf0';
+      statusColor = '#000000';
+    }
+
     const instructor = this.getInstructorName(vehicle);
-    const lat = Number(vehicle.latitude).toFixed(5);
-    const lng = Number(vehicle.longitude).toFixed(5);
+    const lat = isPending ? '33.56510' : Number(vehicle.latitude || 33.5651).toFixed(5);
+    const lng = isPending ? '73.01690' : Number(vehicle.longitude || 73.0169).toFixed(5);
 
     return `
-      <div style="padding: 10px; min-width: 250px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div style="padding: 10px; min-width: 260px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <h6 style="margin: 0; font-weight: 700; color: #212529; font-size: 16px;">
             <i class="bi bi-car-front-fill" style="color: #0d6efd;"></i> ${vehicle.model}
           </h6>
-          <span style="background: ${statusBg}; color: #212529; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 12px;">
+          <span style="background: ${statusBg}; color: ${statusColor}; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 12px;">
             ${statusText}
           </span>
         </div>
@@ -285,10 +312,10 @@ export class TrackingMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
         <div style="background: #f0f7ff; border: 1.5px solid #0d6efd; border-radius: 8px; padding: 8px 10px; margin-top: 10px;">
           <div style="font-weight: 700; color: #0d6efd; font-size: 12px; margin-bottom: 2px;">
-            <i class="bi bi-geo-alt-fill text-danger me-1"></i>CURRENT VEHICLE LOCATION:
+            <i class="bi ${isPending ? 'bi-house-door-fill' : 'bi-geo-alt-fill text-danger'} me-1"></i>${isPending ? 'LOCATION / STATUS:' : 'CURRENT VEHICLE LOCATION:'}
           </div>
           <div style="font-size: 13px; font-weight: 700; font-family: monospace; color: #1e293b;">
-            Lat: ${lat} | Lng: ${lng}
+            ${isPending ? '🏫 In Garage (Driving School Bay)' : 'Lat: ' + lat + ' | Lng: ' + lng}
           </div>
         </div>
       </div>

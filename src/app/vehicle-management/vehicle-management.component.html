@@ -100,10 +100,18 @@
       <div *ngFor="let vehicle of busyVehicles" class="col-lg-4 col-md-6">
         <div class="vehicle-card busy-card">
           <div class="vehicle-header">
-            <div class="vehicle-icon busy">
-              <i class="bi bi-car-front-fill"></i>
+            <div class="vehicle-icon busy" [class.bg-secondary]="isPendingAcceptance(vehicle)">
+              <i class="bi" [class.bi-car-front-fill]="!isPendingAcceptance(vehicle)" [class.bi-hourglass-split]="isPendingAcceptance(vehicle)"></i>
             </div>
-            <span class="badge bg-warning">In Use</span>
+            <span *ngIf="isPendingAcceptance(vehicle)" class="badge bg-secondary">
+              <i class="bi bi-hourglass-split me-1"></i>Pending Start
+            </span>
+            <span *ngIf="!isPendingAcceptance(vehicle) && !vehicle.is_parked" class="badge bg-warning text-dark">
+              <i class="bi bi-car-front-fill me-1"></i>In Use (On Road)
+            </span>
+            <span *ngIf="vehicle.is_parked" class="badge bg-info text-dark">
+              <i class="bi bi-p-circle-fill me-1"></i>Parked
+            </span>
           </div>
           
           <div class="vehicle-body">
@@ -111,30 +119,43 @@
             <div class="vehicle-details">
               <div class="detail-item">
                 <i class="bi bi-hash"></i>
-                <span>{{ vehicle.registration_number }}</span>
+                <span class="font-monospace fw-bold">{{ vehicle.registration_number }}</span>
               </div>
               <div class="detail-item">
-                <i class="bi bi-person-fill"></i>
-                <span>{{ vehicle.current_instructor?.full_name || 'Unknown' }}</span>
+                <i class="bi bi-person-fill text-primary"></i>
+                <span class="fw-bold">{{ vehicle.current_instructor?.full_name || 'Assigned Instructor' }}</span>
               </div>
               <div class="detail-item">
                 <i class="bi bi-clock-fill"></i>
-                <span>{{ vehicle.time_slot }} minutes</span>
+                <span>{{ vehicle.time_slot }} minutes slot</span>
               </div>
               <div class="detail-item">
-                <i class="bi bi-hourglass-split"></i>
-                <span>{{ getRemainingTime(vehicle) }} remaining</span>
+                <i class="bi" [class.bi-hourglass-split]="!isPendingAcceptance(vehicle)" [class.bi-hourglass]="isPendingAcceptance(vehicle)"></i>
+                <span *ngIf="isPendingAcceptance(vehicle)" class="text-muted">Awaiting Instructor Confirmation</span>
+                <span *ngIf="!isPendingAcceptance(vehicle)" [class.text-danger]="!vehicle.is_parked" class="fw-bold">{{ getRemainingTime(vehicle) }}</span>
               </div>
               <div class="detail-item">
-                <i class="bi bi-geo-alt-fill"></i>
-                <span>Lat: {{ vehicle.latitude | number:'1.4-4' }}, Lng: {{ vehicle.longitude | number:'1.4-4' }}</span>
+                <i class="bi" [class.bi-house-door-fill]="isPendingAcceptance(vehicle)" [class.bi-geo-alt-fill]="!isPendingAcceptance(vehicle)" [class.text-danger]="!isPendingAcceptance(vehicle)" [class.text-primary]="isPendingAcceptance(vehicle)"></i>
+                <span *ngIf="isPendingAcceptance(vehicle)" class="fw-bold text-dark">In Garage (School Bay)</span>
+                <span *ngIf="!isPendingAcceptance(vehicle)">Lat: {{ vehicle.latitude | number:'1.4-4' }}, Lng: {{ vehicle.longitude | number:'1.4-4' }}</span>
               </div>
             </div>
           </div>
 
           <div class="vehicle-footer">
-            <button class="btn btn-danger w-100" (click)="releaseVehicle(vehicle._id)">
-              <i class="bi bi-x-circle me-2"></i>Release Vehicle
+            <!-- Active Lesson Locked Button -->
+            <button *ngIf="!canReleaseVehicle(vehicle)" 
+                    class="btn btn-secondary w-100" 
+                    disabled 
+                    [title]="'Cannot release: Lesson in progress with ' + getRemainingTime(vehicle) + ' remaining'">
+              <i class="bi bi-lock-fill me-2"></i>Lesson In Progress ({{ getRemainingTime(vehicle) }})
+            </button>
+
+            <!-- Expired / Parked / Cancel Pending Release Button -->
+            <button *ngIf="canReleaseVehicle(vehicle)" 
+                    class="btn btn-danger w-100 fw-bold" 
+                    (click)="releaseVehicle(vehicle._id)">
+              <i class="bi bi-box-arrow-right me-2"></i>Release Vehicle ({{ vehicle.is_parked ? 'Parked' : isPendingAcceptance(vehicle) ? 'Cancel Pending' : 'Time Expired' }})
             </button>
           </div>
         </div>
@@ -356,35 +377,38 @@
   </div>
 
   <!-- Allocate Modal -->
-  <!-- Allocate Modal - REPLACE YOUR EXISTING ALLOCATE MODAL WITH THIS -->
-  <div class="modal fade" [class.show]="showAllocateModal" [style.display]="showAllocateModal ? 'block' : 'none'" tabindex="-1">
+  <div class="modal fade" [class.show]="showAllocateModal" [style.display]="showAllocateModal ? 'block' : 'none'" tabindex="-1" style="z-index: 1060;">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">
+      <div class="modal-content shadow-lg border-primary">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title fw-bold">
             <i class="bi bi-car-front me-2"></i>Allocate Vehicle
           </h5>
-          <button type="button" class="btn-close" (click)="closeAllocateModal()"></button>
+          <button type="button" class="btn-close btn-close-white" (click)="closeAllocateModal()"></button>
         </div>
         <div class="modal-body" *ngIf="selectedVehicle">
-          <div class="selected-vehicle-info">
-            <h6>{{ selectedVehicle.model }}</h6>
-            <small class="text-muted">{{ selectedVehicle.registration_number }}</small>
+          <div class="alert alert-danger" *ngIf="allocateError">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ allocateError }}
+          </div>
+
+          <div class="selected-vehicle-info p-3 bg-light rounded border mb-3">
+            <h5 class="mb-1 text-dark fw-bold">{{ selectedVehicle.model }}</h5>
+            <div class="text-muted small">Registration: <strong class="font-monospace text-dark">{{ selectedVehicle.registration_number }}</strong></div>
           </div>
 
           <form>
             <div class="mb-3">
-              <label class="form-label fw-bold">Select Instructor <span class="text-danger">*</span></label>
-              <select class="form-select" [(ngModel)]="allocationData.instructor_id" name="instructor" required>
-                <option [value]="null">Choose an instructor...</option>
-                <option *ngFor="let instructor of instructors" [value]="instructor._id || instructor.id" [disabled]="isInstructorBusy(instructor)">
-                  {{ instructor.full_name }} ({{ instructor.email }}) {{ isInstructorBusy(instructor) ? '— ⚠️ [Currently on another ride]' : '' }}
+              <label class="form-label fw-bold text-dark">Select Instructor <span class="text-danger">*</span></label>
+              <select class="form-select form-select-lg" [(ngModel)]="allocationData.instructor_id" name="instructor" required>
+                <option [ngValue]="null">-- Choose an instructor --</option>
+                <option *ngFor="let instructor of instructors" [ngValue]="instructor._id || instructor.id" [disabled]="isInstructorBusy(instructor)">
+                  {{ instructor.full_name }} ({{ instructor.email }}) {{ isInstructorBusy(instructor) ? '— ⚠️ [Busy]' : '' }}
                 </option>
               </select>
             </div>
 
             <div class="mb-3">
-              <label class="form-label fw-bold">Time Slot <span class="text-danger">*</span></label>
+              <label class="form-label fw-bold text-dark">Session Time Slot <span class="text-danger">*</span></label>
               <div class="time-slot-grid">
                 <!-- 1 MINUTE FOR TESTING -->
                 <div class="time-slot-option">
@@ -397,7 +421,7 @@
                     [(ngModel)]="allocationData.time_slot">
                   <label class="btn btn-outline-danger w-100" for="time1">
                     <i class="bi bi-lightning-fill"></i>
-                    <span class="d-block">1 min</span>
+                    <span class="d-block fw-bold">1 min</span>
                     <small class="text-muted">Testing</small>
                   </label>
                 </div>
@@ -413,7 +437,7 @@
                     [(ngModel)]="allocationData.time_slot">
                   <label class="btn btn-outline-primary w-100" for="time10">
                     <i class="bi bi-clock-fill"></i>
-                    <span class="d-block">10 min</span>
+                    <span class="d-block fw-bold">10 min</span>
                     <small class="text-muted">Express</small>
                   </label>
                 </div>
@@ -429,7 +453,7 @@
                     [(ngModel)]="allocationData.time_slot">
                   <label class="btn btn-outline-primary w-100" for="time35">
                     <i class="bi bi-clock-fill"></i>
-                    <span class="d-block">35 min</span>
+                    <span class="d-block fw-bold">35 min</span>
                     <small class="text-muted">Short</small>
                   </label>
                 </div>
@@ -445,7 +469,7 @@
                     [(ngModel)]="allocationData.time_slot">
                   <label class="btn btn-outline-primary w-100" for="time65">
                     <i class="bi bi-clock-fill"></i>
-                    <span class="d-block">65 min</span>
+                    <span class="d-block fw-bold">65 min</span>
                     <small class="text-muted">Standard</small>
                   </label>
                 </div>
@@ -461,14 +485,14 @@
                     [(ngModel)]="allocationData.time_slot">
                   <label class="btn btn-outline-primary w-100" for="time125">
                     <i class="bi bi-clock-fill"></i>
-                    <span class="d-block">125 min</span>
+                    <span class="d-block fw-bold">125 min</span>
                     <small class="text-muted">Extended</small>
                   </label>
                 </div>
               </div>
               
-              <div class="alert alert-info mt-3" *ngIf="allocationData.time_slot === 1">
-                <i class="bi bi-info-circle me-2"></i>
+              <div class="alert alert-info mt-3 py-2 small" *ngIf="allocationData.time_slot === 1">
+                <i class="bi bi-info-circle-fill me-1"></i>
                 <strong>Testing Mode:</strong> Vehicle will be released after 1 minute for testing purposes.
               </div>
             </div>
@@ -478,10 +502,9 @@
           <button type="button" class="btn btn-secondary" (click)="closeAllocateModal()">Cancel</button>
           <button 
             type="button" 
-            class="btn btn-primary fw-bold" 
-            [disabled]="!allocationData.instructor_id || allocateLoading"
+            class="btn btn-primary fw-bold px-4" 
             (click)="allocateVehicle()">
-            <span *ngIf="!allocateLoading"><i class="bi bi-check-circle me-2"></i>Allocate Vehicle</span>
+            <span *ngIf="!allocateLoading"><i class="bi bi-check-circle-fill me-2"></i>Allocate Vehicle</span>
             <span *ngIf="allocateLoading"><span class="spinner-border spinner-border-sm me-2"></span>Allocating...</span>
           </button>
         </div>

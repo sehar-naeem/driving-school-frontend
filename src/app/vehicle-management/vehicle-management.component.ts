@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -32,6 +32,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   // Allocate Modal
   showAllocateModal = false;
   allocateLoading = false;
+  allocateError = '';
   selectedVehicle: Vehicle | null = null;
   allocationData: { instructor_id: any; time_slot: number } = {
     instructor_id: null,
@@ -46,7 +47,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   showExpiredModal = false;
   activeExpired: TimerNotification | null = null;
 
-  // Live Extension Request Modal (From Instructor)
+  // Admin Live Extension Modal (Appears when instructor sends request)
   showAdminExtensionModal = false;
   incomingExtension: any = null;
   adminReplyMessage: string = 'Approved. Please complete the lesson and return to school as early as possible.';
@@ -83,7 +84,8 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private timerService: VehicleTimerService,
     private wsService: WebSocketService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -527,23 +529,37 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
 
   // ===== ALLOCATE VEHICLE MODAL =====
   openAllocateModal(vehicle: Vehicle): void {
+    console.log('🚗 openAllocateModal triggered for vehicle:', vehicle.registration_number);
     this.selectedVehicle = vehicle;
+    this.allocateError = '';
+    this.allocateLoading = false;
+
+    // Pick first available instructor or null
+    const firstAvailable = this.instructors.find(i => !this.isInstructorBusy(i));
     this.allocationData = {
-      instructor_id: null,
+      instructor_id: firstAvailable ? (firstAvailable._id || firstAvailable.id) : null,
       time_slot: 35
     };
     this.showAllocateModal = true;
+    this.cdr.detectChanges();
   }
 
   closeAllocateModal(): void {
     this.showAllocateModal = false;
     this.selectedVehicle = null;
+    this.allocateError = '';
+    this.allocateLoading = false;
+    this.cdr.detectChanges();
   }
 
   allocateVehicle(): void {
-    if (!this.selectedVehicle) return;
+    if (!this.selectedVehicle) {
+      this.allocateError = 'No vehicle selected for allocation.';
+      return;
+    }
 
-    if (!this.allocationData.instructor_id) {
+    if (!this.allocationData.instructor_id || this.allocationData.instructor_id === 'null') {
+      this.allocateError = 'Please select an instructor from the dropdown list.';
       alert('Please select an instructor from the dropdown list.');
       return;
     }
@@ -553,21 +569,22 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     const timeSlot = Number(this.allocationData.time_slot) || 35;
 
     this.allocateLoading = true;
+    this.allocateError = '';
+
+    console.log('🚀 Sending allocation request to backend:', { vehicleId, instructorId, timeSlot });
 
     this.vehicleService.allocateVehicle({
       vehicle_id: vehicleId,
       instructor_id: instructorId,
       time_slot: timeSlot
     }).subscribe({
-      next: () => {
+      next: (res) => {
+        console.log('✅ Allocation successful:', res);
         this.allocateLoading = false;
         const instructor = this.instructors.find(i => (i._id || i.id)?.toString() === instructorId);
         const instructorName = instructor?.full_name || 'Instructor';
 
-        this.showNotification(
-          `Vehicle ${this.selectedVehicle!.registration_number} allocated to ${instructorName}! Waiting for instructor confirmation.`,
-          'success'
-        );
+        alert(`✅ Vehicle ${this.selectedVehicle!.registration_number} (${this.selectedVehicle!.model}) allocated to ${instructorName}! The instructor has received a notification to start the lesson.`);
         
         this.closeAllocateModal();
         this.loadVehicles();
@@ -575,29 +592,50 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.allocateLoading = false;
-        console.error('Allocation error:', err);
-        alert('Failed to allocate vehicle: ' + (err?.error?.message || err?.message || 'Server error'));
+        console.error('❌ Allocation error:', err);
+        const errMsg = err?.error?.message || err?.message || 'Server error occurred during allocation';
+        this.allocateError = errMsg;
+        alert('Allocation Failed: ' + errMsg);
+        this.cdr.detectChanges();
       }
     });
+  }
+
+  // ===== HELPER STATUS CHECKS =====
+  isPendingAcceptance(vehicle: Vehicle): boolean {
+    return !vehicle.is_parked && (!vehicle.session_start || vehicle.instructor_status === 'assigned');
+  }
+
+  canReleaseVehicle(vehicle: Vehicle): boolean {
+    if (!vehicle) return true;
+    if (vehicle.is_parked) return true;
+    if (this.isPendingAcceptance(vehicle)) return true; // Admin can cancel pending allocation
+    return this.calculateRemainingMinutes(vehicle) <= 0;
   }
 
   // ===== RELEASE VEHICLE =====
   releaseVehicle(vehicleId: string): void {
     if (!vehicleId) return;
 
-    if (confirm('Are you sure you want to release this vehicle?')) {
+    const vehicle = this.busyVehicles.find(v => (v._id || v.id)?.toString() === vehicleId.toString());
+    if (vehicle && !this.canReleaseVehicle(vehicle)) {
+      alert(`⚠️ Cannot release vehicle while session is active!\nRemaining ride time: ${this.getRemainingTime(vehicle)}.\nPlease wait until the session expires or instructor reports car parked.`);
+      return;
+    }
+
+    if (confirm('Are you sure you want to release this vehicle back to Vacant status?')) {
       const id = vehicleId.toString();
       this.timerService.stopTimer(id);
       
       this.vehicleService.releaseVehicle(id).subscribe({
         next: () => {
-          this.showNotification('Vehicle released successfully!', 'success');
+          this.showNotification('Vehicle released successfully back to vacant!', 'success');
           this.loadVehicles();
           this.loadInstructors();
         },
         error: (err) => {
           console.error('Release error:', err);
-          this.showNotification('Failed to release vehicle: ' + (err?.error?.message || 'Unknown error'), 'error');
+          alert('Failed to release vehicle: ' + (err?.error?.message || 'Server error'));
         }
       });
     }

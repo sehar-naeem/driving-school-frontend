@@ -30,14 +30,17 @@
             </small>
 
             <div class="mt-2 d-flex flex-wrap gap-1">
-              <span class="badge" [class.bg-warning]="!vehicle.is_parked" [class.text-dark]="!vehicle.is_parked" [class.bg-info]="vehicle.is_parked">
-                {{ vehicle.is_parked ? '🅿️ Parked & Completed' : '🚗 In Use' }}
+              <span *ngIf="isPendingAcceptance(vehicle)" class="badge bg-secondary">
+                ⏳ Pending Acceptance (In Garage)
+              </span>
+              <span *ngIf="!isPendingAcceptance(vehicle) && !vehicle.is_parked" class="badge bg-warning text-dark">
+                🚗 In Use
               </span>
               <span *ngIf="!vehicle.is_parked && (vehicle.instructor_status === 'on_way' || vehicle.instructor_status === 'in_lesson')" class="badge bg-success">
-                🚀 On The Way
+                🚀 On The Road
               </span>
-              <span *ngIf="!vehicle.is_parked && vehicle.instructor_status === 'assigned'" class="badge bg-secondary">
-                ⏳ Assigned
+              <span *ngIf="vehicle.is_parked" class="badge bg-info text-dark">
+                🅿️ Parked & Completed
               </span>
             </div>
 
@@ -55,14 +58,24 @@
               </button>
             </div>
 
-            <!-- Coordinates box -->
+            <!-- Location / Coordinates box -->
             <div class="mt-2 p-2 bg-light border rounded">
-              <small class="text-danger fw-bold d-block">
-                <i class="bi bi-geo-alt-fill me-1"></i>Coordinates:
-              </small>
-              <small class="font-monospace text-dark fw-bold">
-                {{ vehicle.latitude | number:'1.5-5' }}, {{ vehicle.longitude | number:'1.5-5' }}
-              </small>
+              <div *ngIf="isPendingAcceptance(vehicle)">
+                <small class="text-primary fw-bold d-block">
+                  <i class="bi bi-house-door-fill me-1"></i>Location:
+                </small>
+                <small class="fw-bold text-dark">
+                  🏫 In Garage (Driving School Bay)
+                </small>
+              </div>
+              <div *ngIf="!isPendingAcceptance(vehicle)">
+                <small class="text-danger fw-bold d-block">
+                  <i class="bi bi-geo-alt-fill me-1"></i>Coordinates:
+                </small>
+                <small class="font-monospace text-dark fw-bold">
+                  {{ vehicle.latitude | number:'1.5-5' }}, {{ vehicle.longitude | number:'1.5-5' }}
+                </small>
+              </div>
             </div>
           </div>
         </div>

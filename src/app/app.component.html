@@ -91,3 +91,81 @@
     </div>
   </div>
 </div>
+
+<!-- 🚗 GLOBAL ADMIN LIVE LESSON STARTED / INSTRUCTOR ON THE WAY NOTIFICATION MODAL -->
+<div *ngIf="showLessonStartedModal" class="global-extension-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); z-index: 999999; display: flex; align-items: center; justify-content: center;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 500px; width: 92%; margin: 0;">
+    <div class="modal-content border-success shadow-lg" style="background: white; border-radius: 12px; overflow: hidden;">
+      <div class="modal-header bg-success text-white py-3">
+        <h5 class="modal-title fw-bold mb-0">
+          <i class="bi bi-send-check-fill me-2"></i>🚗 Instructor Confirmed / Lesson Started!
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="closeLessonStartedModal()"></button>
+      </div>
+      <div class="modal-body text-center py-4" *ngIf="lessonStartedData">
+        <div class="rounded-circle bg-success bg-opacity-10 text-success p-3 d-inline-flex mb-3">
+          <i class="bi bi-car-front-fill display-5"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-1">{{ lessonStartedData.instructor || 'Instructor' }}</h4>
+        <p class="text-muted mb-3">
+          Has acknowledged the allocation and started the lesson with vehicle 
+          <strong class="text-dark">{{ lessonStartedData.model }} ({{ lessonStartedData.registration_number }})</strong>.
+        </p>
+
+        <div class="alert alert-success py-2 d-flex justify-content-between align-items-center mb-3">
+          <span class="small fw-bold"><i class="bi bi-clock-fill me-1"></i>Session Active:</span>
+          <span class="badge bg-success fs-6">{{ lessonStartedData.time_slot || 35 }} minutes</span>
+        </div>
+
+        <div *ngIf="lessonStartedData.latitude && lessonStartedData.longitude" class="small text-muted font-monospace">
+          <i class="bi bi-geo-alt-fill text-danger me-1"></i>Location: {{ lessonStartedData.latitude | number:'1.4-4' }}, {{ lessonStartedData.longitude | number:'1.4-4' }}
+        </div>
+      </div>
+      <div class="modal-footer d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary flex-fill" (click)="closeLessonStartedModal()">
+          Dismiss
+        </button>
+        <button type="button" class="btn btn-primary fw-bold flex-fill" (click)="trackLessonOnMap()">
+          <i class="bi bi-geo-alt-fill me-1"></i>📍 Track on Map
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ⚠️ GLOBAL ADMIN LIVE ALLOCATION DECLINED NOTIFICATION MODAL -->
+<div *ngIf="showAllocationDeclinedModal" class="global-extension-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); z-index: 999999; display: flex; align-items: center; justify-content: center;">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 500px; width: 92%; margin: 0;">
+    <div class="modal-content border-warning shadow-lg" style="background: white; border-radius: 12px; overflow: hidden;">
+      <div class="modal-header bg-warning text-dark py-3">
+        <h5 class="modal-title fw-bold mb-0">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>⚠️ Vehicle Allocation Declined
+        </h5>
+        <button type="button" class="btn-close" (click)="closeAllocationDeclinedModal()"></button>
+      </div>
+      <div class="modal-body text-center py-4" *ngIf="allocationDeclinedData">
+        <div class="rounded-circle bg-warning bg-opacity-25 text-warning p-3 d-inline-flex mb-3">
+          <i class="bi bi-person-x-fill display-5"></i>
+        </div>
+        <h4 class="fw-bold text-dark mb-1">{{ allocationDeclinedData.instructor || 'Instructor' }}</h4>
+        <p class="text-muted mb-3">
+          Declined the allocation for vehicle 
+          <strong class="text-dark">{{ allocationDeclinedData.model }} ({{ allocationDeclinedData.registration_number }})</strong>.
+        </p>
+
+        <div class="alert alert-info py-2 small mb-0">
+          <i class="bi bi-info-circle-fill me-1"></i>
+          The vehicle has been automatically released back to <strong>Vacant</strong> status and is ready for re-allocation.
+        </div>
+      </div>
+      <div class="modal-footer d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary flex-fill" (click)="closeAllocationDeclinedModal()">
+          Dismiss
+        </button>
+        <button type="button" class="btn btn-warning fw-bold flex-fill text-dark" (click)="reallocateVehicle()">
+          <i class="bi bi-arrow-repeat me-1"></i>🔄 Re-allocate Vehicle
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

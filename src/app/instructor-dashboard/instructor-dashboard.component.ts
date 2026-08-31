@@ -302,6 +302,7 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
           longitude: this.gpsLongitude
         });
         alert(`🚀 Confirmed! Admin notified that you are on your way with ${this.currentVehicle!.model} (${this.currentVehicle!.registration_number}). Live GPS tracking started!`);
+        this.loadDashboardData();
       },
       error: (err) => {
         console.error('Error acknowledging allocation:', err);
@@ -310,9 +311,37 @@ export class InstructorDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  declineAllocation(): void {
+    if (!this.currentVehicle) {
+      this.showNewAllocationModal = false;
+      return;
+    }
+    const vehicleId = this.getEntityId(this.currentVehicle);
+    if (!vehicleId) {
+      this.showNewAllocationModal = false;
+      return;
+    }
+
+    this.vehicleService.declineAllocation(vehicleId, {
+      reason: 'Instructor is unavailable / declined lesson'
+    }).subscribe({
+      next: () => {
+        this.showNewAllocationModal = false;
+        this.hasDismissedNewAllocation = true;
+        this.currentVehicle = null;
+        alert('Allocation declined. Vehicle has been released back to vacant for Admin to re-allocate.');
+        this.loadDashboardData();
+      },
+      error: (err) => {
+        console.error('Error declining allocation:', err);
+        this.showNewAllocationModal = false;
+        this.loadDashboardData();
+      }
+    });
+  }
+
   dismissNewAllocationModal(): void {
-    this.showNewAllocationModal = false;
-    this.hasDismissedNewAllocation = true;
+    this.declineAllocation();
   }
 
   dismissWarningModal(): void {

@@ -39,6 +39,14 @@ export class AppComponent implements OnInit, OnDestroy {
   adminReplyMessage = 'Approved. Please complete the lesson and return to school as early as you can.';
   adminResponding = false;
 
+  // Global Admin Live Lesson Started Modal (Appears on ANY page when instructor acknowledges)
+  showLessonStartedModal = false;
+  lessonStartedData: any = null;
+
+  // Global Admin Live Allocation Declined Modal (Appears on ANY page when instructor declines)
+  showAllocationDeclinedModal = false;
+  allocationDeclinedData: any = null;
+
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -84,7 +92,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private setupGlobalWebSocket(): void {
     this.wsService.connect();
 
-    // Listen for extension requests from ANY instructor on ANY page
+    // 1. Listen for extension requests from ANY instructor on ANY page
     const extSub = this.wsService.onExtensionRequested().subscribe((data: any) => {
       const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
       const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
@@ -99,6 +107,34 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
     this.subscriptions.push(extSub);
+
+    // 2. Listen for Lesson Started / Instructor On The Way on ANY page
+    const lessonSub = this.wsService.onInstructorOnWay().subscribe((data: any) => {
+      const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+      const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
+      const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
+
+      if (isAdminUser) {
+        console.log('🚗 Global Admin Notification - Lesson Started / On Way:', data);
+        this.lessonStartedData = data;
+        this.showLessonStartedModal = true;
+      }
+    });
+    this.subscriptions.push(lessonSub);
+
+    // 3. Listen for Allocation Declined by Instructor on ANY page
+    const declineSub = this.wsService.onAllocationDeclined().subscribe((data: any) => {
+      const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+      const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
+      const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
+
+      if (isAdminUser) {
+        console.log('⚠️ Global Admin Notification - Allocation Declined:', data);
+        this.allocationDeclinedData = data;
+        this.showAllocationDeclinedModal = true;
+      }
+    });
+    this.subscriptions.push(declineSub);
   }
 
   /**
@@ -216,5 +252,32 @@ export class AppComponent implements OnInit, OnDestroy {
         alert('Error declining extension: ' + (err.error?.message || 'Server error'));
       }
     });
+  }
+
+  // ===== GLOBAL LESSON STARTED MODAL ACTIONS =====
+  closeLessonStartedModal(): void {
+    this.showLessonStartedModal = false;
+    this.lessonStartedData = null;
+  }
+
+  trackLessonOnMap(): void {
+    const vehicleId = (this.lessonStartedData?.vehicle_id || this.lessonStartedData?.id)?.toString();
+    this.closeLessonStartedModal();
+    if (vehicleId) {
+      this.router.navigate(['/admin/tracking'], { queryParams: { vehicleId } });
+    } else {
+      this.router.navigate(['/admin/tracking']);
+    }
+  }
+
+  // ===== GLOBAL ALLOCATION DECLINED MODAL ACTIONS =====
+  closeAllocationDeclinedModal(): void {
+    this.showAllocationDeclinedModal = false;
+    this.allocationDeclinedData = null;
+  }
+
+  reallocateVehicle(): void {
+    this.closeAllocationDeclinedModal();
+    this.router.navigate(['/admin/vehicles']);
   }
 }

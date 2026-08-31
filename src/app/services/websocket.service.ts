@@ -15,6 +15,7 @@ export class WebSocketService {
   private allocationUpdateSubject = new Subject<any>();
   private allocationCreatedSubject = new Subject<any>();
   private allocationCompletedSubject = new Subject<any>();
+  private allocationDeclinedSubject = new Subject<any>();
   private instructorArrivalSubject = new Subject<any>();
   private timeWarningSubject = new Subject<any>();
   private delayWarningSubject = new Subject<any>();
@@ -61,6 +62,7 @@ export class WebSocketService {
       this.socket.on('allocation:updated', (data: any) => this.allocationUpdateSubject.next(data));
       this.socket.on('allocation:created', (data: any) => this.allocationCreatedSubject.next(data));
       this.socket.on('allocation:completed', (data: any) => this.allocationCompletedSubject.next(data));
+      this.socket.on('allocation:declined', (data: any) => this.allocationDeclinedSubject.next(data));
       this.socket.on('instructor:arrived', (data: any) => this.instructorArrivalSubject.next(data));
       this.socket.on('time:warning', (data: any) => this.timeWarningSubject.next(data));
       this.socket.on('delay:warning', (data: any) => this.delayWarningSubject.next(data));
@@ -87,7 +89,10 @@ export class WebSocketService {
         console.log('⚡ Socket event received: extension:respond', data);
         this.extensionRespondedSubject.next(data);
       });
-      this.socket.on('instructor:on_way', (data: any) => this.instructorOnWaySubject.next(data));
+      this.socket.on('instructor:on_way', (data: any) => {
+        console.log('⚡ Socket event received: instructor:on_way', data);
+        this.instructorOnWaySubject.next(data);
+      });
       this.socket.on('vehicle:parked', (data: any) => this.vehicleParkedSubject.next(data));
     }
   }
@@ -119,6 +124,10 @@ export class WebSocketService {
 
   onAllocationCompleted(): Observable<any> {
     return this.allocationCompletedSubject.asObservable();
+  }
+
+  onAllocationDeclined(): Observable<any> {
+    return this.allocationDeclinedSubject.asObservable();
   }
 
   onInstructorArrival(): Observable<any> {

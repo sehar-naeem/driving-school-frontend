@@ -28,6 +28,16 @@ export interface Vehicle {
     reason?: string;
     requested_at?: Date;
     status?: 'pending' | 'approved' | 'rejected' | null;
+    admin_minutes?: number;
+    admin_message?: string;
+    dismissed_by_instructor?: boolean;
+  } | null;
+  last_event?: {
+    event_type?: 'lesson_started' | 'allocation_declined' | null;
+    instructor?: string;
+    reason?: string;
+    timestamp?: Date;
+    dismissed_by_admin?: boolean;
   } | null;
   createdAt?: Date;
   updatedAt?: Date;

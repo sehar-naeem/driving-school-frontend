@@ -374,20 +374,17 @@
 
           <form>
             <div class="mb-3">
-              <label class="form-label">Select Instructor <span class="text-danger">*</span></label>
-              <select class="form-select" [(ngModel)]="allocationData.instructor_id" name="instructor">
+              <label class="form-label fw-bold">Select Instructor <span class="text-danger">*</span></label>
+              <select class="form-select" [(ngModel)]="allocationData.instructor_id" name="instructor" required>
                 <option [value]="null">Choose an instructor...</option>
-                <option *ngFor="let instructor of availableInstructors" [value]="instructor._id || instructor.id">
-                  {{ instructor.full_name }} ({{ instructor.email }})
+                <option *ngFor="let instructor of instructors" [value]="instructor._id || instructor.id" [disabled]="isInstructorBusy(instructor)">
+                  {{ instructor.full_name }} ({{ instructor.email }}) {{ isInstructorBusy(instructor) ? '— ⚠️ [Currently on another ride]' : '' }}
                 </option>
               </select>
-              <div *ngIf="availableInstructors.length === 0" class="alert alert-warning py-2 px-3 mt-2 small">
-                <i class="bi bi-exclamation-triangle me-1"></i> All instructors are currently busy on other vehicles.
-              </div>
             </div>
 
             <div class="mb-3">
-              <label class="form-label">Time Slot <span class="text-danger">*</span></label>
+              <label class="form-label fw-bold">Time Slot <span class="text-danger">*</span></label>
               <div class="time-slot-grid">
                 <!-- 1 MINUTE FOR TESTING -->
                 <div class="time-slot-option">
@@ -481,10 +478,11 @@
           <button type="button" class="btn btn-secondary" (click)="closeAllocateModal()">Cancel</button>
           <button 
             type="button" 
-            class="btn btn-primary" 
-            [disabled]="!allocationData.instructor_id"
+            class="btn btn-primary fw-bold" 
+            [disabled]="!allocationData.instructor_id || allocateLoading"
             (click)="allocateVehicle()">
-            <i class="bi bi-check-circle me-2"></i>Allocate Vehicle
+            <span *ngIf="!allocateLoading"><i class="bi bi-check-circle me-2"></i>Allocate Vehicle</span>
+            <span *ngIf="allocateLoading"><span class="spinner-border spinner-border-sm me-2"></span>Allocating...</span>
           </button>
         </div>
       </div>

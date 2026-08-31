@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 
@@ -29,7 +29,7 @@ export class WebSocketService {
   private instructorOnWaySubject = new Subject<any>();
   private vehicleParkedSubject = new Subject<any>();
 
-  constructor() {
+  constructor(private ngZone: NgZone) {
     this.connect();
   }
 
@@ -55,45 +55,48 @@ export class WebSocketService {
         console.error('WebSocket error:', error);
       });
 
-      // Stream events into Subjects
-      this.socket.on('location:updated', (data: any) => this.locationUpdateSubject.next(data));
-      this.socket.on('location:update', (data: any) => this.locationUpdateSubject.next(data));
-      this.socket.on('vehicle:updated', (data: any) => this.vehicleUpdateSubject.next(data));
-      this.socket.on('allocation:updated', (data: any) => this.allocationUpdateSubject.next(data));
-      this.socket.on('allocation:created', (data: any) => this.allocationCreatedSubject.next(data));
-      this.socket.on('allocation:completed', (data: any) => this.allocationCompletedSubject.next(data));
-      this.socket.on('allocation:declined', (data: any) => this.allocationDeclinedSubject.next(data));
-      this.socket.on('instructor:arrived', (data: any) => this.instructorArrivalSubject.next(data));
-      this.socket.on('time:warning', (data: any) => this.timeWarningSubject.next(data));
-      this.socket.on('delay:warning', (data: any) => this.delayWarningSubject.next(data));
-      this.socket.on('admin:notification', (data: any) => this.adminNotificationSubject.next(data));
-      this.socket.on('instructor:notification', (data: any) => this.instructorNotificationSubject.next(data));
-      this.socket.on('complaint:updated', (data: any) => this.complaintUpdateSubject.next(data));
-      this.socket.on('complaint:created', (data: any) => this.complaintCreatedSubject.next(data));
-      this.socket.on('complaint:status-changed', (data: any) => this.complaintStatusChangedSubject.next(data));
+      // Stream events into Subjects inside Angular zone
+      this.socket.on('location:updated', (data: any) => this.ngZone.run(() => this.locationUpdateSubject.next(data)));
+      this.socket.on('location:update', (data: any) => this.ngZone.run(() => this.locationUpdateSubject.next(data)));
+      this.socket.on('vehicle:updated', (data: any) => this.ngZone.run(() => this.vehicleUpdateSubject.next(data)));
+      this.socket.on('allocation:updated', (data: any) => this.ngZone.run(() => this.allocationUpdateSubject.next(data)));
+      this.socket.on('allocation:created', (data: any) => this.ngZone.run(() => this.allocationCreatedSubject.next(data)));
+      this.socket.on('allocation:completed', (data: any) => this.ngZone.run(() => this.allocationCompletedSubject.next(data)));
+      this.socket.on('allocation:declined', (data: any) => this.ngZone.run(() => this.allocationDeclinedSubject.next(data)));
+      this.socket.on('instructor:arrived', (data: any) => this.ngZone.run(() => this.instructorArrivalSubject.next(data)));
+      this.socket.on('time:warning', (data: any) => this.ngZone.run(() => this.timeWarningSubject.next(data)));
+      this.socket.on('delay:warning', (data: any) => this.ngZone.run(() => this.delayWarningSubject.next(data)));
+      this.socket.on('admin:notification', (data: any) => this.ngZone.run(() => this.adminNotificationSubject.next(data)));
+      this.socket.on('instructor:notification', (data: any) => this.ngZone.run(() => this.instructorNotificationSubject.next(data)));
+      this.socket.on('complaint:updated', (data: any) => this.ngZone.run(() => this.complaintUpdateSubject.next(data)));
+      this.socket.on('complaint:created', (data: any) => this.ngZone.run(() => this.complaintCreatedSubject.next(data)));
+      this.socket.on('complaint:status-changed', (data: any) => this.ngZone.run(() => this.complaintStatusChangedSubject.next(data)));
       
       // Extension & Parking
       this.socket.on('extension:requested', (data: any) => {
         console.log('⚡ Socket event received: extension:requested', data);
-        this.extensionRequestedSubject.next(data);
+        this.ngZone.run(() => this.extensionRequestedSubject.next(data));
       });
       this.socket.on('extension:request', (data: any) => {
         console.log('⚡ Socket event received: extension:request', data);
-        this.extensionRequestedSubject.next(data);
+        this.ngZone.run(() => this.extensionRequestedSubject.next(data));
       });
       this.socket.on('extension:responded', (data: any) => {
         console.log('⚡ Socket event received: extension:responded', data);
-        this.extensionRespondedSubject.next(data);
+        this.ngZone.run(() => this.extensionRespondedSubject.next(data));
       });
       this.socket.on('extension:respond', (data: any) => {
         console.log('⚡ Socket event received: extension:respond', data);
-        this.extensionRespondedSubject.next(data);
+        this.ngZone.run(() => this.extensionRespondedSubject.next(data));
       });
       this.socket.on('instructor:on_way', (data: any) => {
         console.log('⚡ Socket event received: instructor:on_way', data);
-        this.instructorOnWaySubject.next(data);
+        this.ngZone.run(() => this.instructorOnWaySubject.next(data));
       });
-      this.socket.on('vehicle:parked', (data: any) => this.vehicleParkedSubject.next(data));
+      this.socket.on('vehicle:parked', (data: any) => {
+        console.log('⚡ Socket event received: vehicle:parked', data);
+        this.ngZone.run(() => this.vehicleParkedSubject.next(data));
+      });
     }
   }
 

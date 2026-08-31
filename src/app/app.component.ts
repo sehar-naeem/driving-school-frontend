@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
@@ -53,7 +53,9 @@ export class AppComponent implements OnInit, OnDestroy {
     private router: Router,
     private authService: AuthService,
     private wsService: WebSocketService,
-    private vehicleService: VehicleService
+    private vehicleService: VehicleService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -94,45 +96,54 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // 1. Listen for extension requests from ANY instructor on ANY page
     const extSub = this.wsService.onExtensionRequested().subscribe((data: any) => {
-      const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
-      const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
-      const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
+      this.ngZone.run(() => {
+        const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+        const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
+        const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
 
-      if (isAdminUser) {
-        console.log('🔔 Global Admin Notification - Extension requested:', data);
-        this.globalExtensionRequest = data;
-        this.adminReplyMinutes = Number(data.minutes) || 15;
-        this.adminReplyMessage = 'Approved. Please complete the lesson and return to school as early as you can.';
-        this.showGlobalExtensionModal = true;
-      }
+        if (isAdminUser) {
+          console.log('🔔 Global Admin Notification - Extension requested:', data);
+          this.globalExtensionRequest = data;
+          this.adminReplyMinutes = Number(data.minutes) || 15;
+          this.adminReplyMessage = 'Approved. Please complete the lesson and return to school as early as you can.';
+          this.showGlobalExtensionModal = true;
+          this.cdr.detectChanges();
+        }
+      });
     });
     this.subscriptions.push(extSub);
 
     // 2. Listen for Lesson Started / Instructor On The Way on ANY page
     const lessonSub = this.wsService.onInstructorOnWay().subscribe((data: any) => {
-      const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
-      const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
-      const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
+      this.ngZone.run(() => {
+        const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+        const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
+        const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
 
-      if (isAdminUser) {
-        console.log('🚗 Global Admin Notification - Lesson Started / On Way:', data);
-        this.lessonStartedData = data;
-        this.showLessonStartedModal = true;
-      }
+        if (isAdminUser) {
+          console.log('🚗 Global Admin Notification - Lesson Started / On Way:', data);
+          this.lessonStartedData = data;
+          this.showLessonStartedModal = true;
+          this.cdr.detectChanges();
+        }
+      });
     });
     this.subscriptions.push(lessonSub);
 
     // 3. Listen for Allocation Declined by Instructor on ANY page
     const declineSub = this.wsService.onAllocationDeclined().subscribe((data: any) => {
-      const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
-      const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
-      const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
+      this.ngZone.run(() => {
+        const userStr = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+        const user = userStr ? JSON.parse(userStr) : this.authService.getCurrentUser();
+        const isAdminUser = user?.role === 'admin' || this.authService.isAdmin();
 
-      if (isAdminUser) {
-        console.log('⚠️ Global Admin Notification - Allocation Declined:', data);
-        this.allocationDeclinedData = data;
-        this.showAllocationDeclinedModal = true;
-      }
+        if (isAdminUser) {
+          console.log('⚠️ Global Admin Notification - Allocation Declined:', data);
+          this.allocationDeclinedData = data;
+          this.showAllocationDeclinedModal = true;
+          this.cdr.detectChanges();
+        }
+      });
     });
     this.subscriptions.push(declineSub);
   }

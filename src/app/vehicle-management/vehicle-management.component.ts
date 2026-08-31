@@ -31,9 +31,10 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   
   // Allocate Modal
   showAllocateModal = false;
+  allocateLoading = false;
   selectedVehicle: Vehicle | null = null;
-  allocationData = {
-    instructor_id: null as any,
+  allocationData: { instructor_id: any; time_slot: number } = {
+    instructor_id: null,
     time_slot: 35
   };
 
@@ -194,6 +195,15 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     });
   }
 
+  isInstructorBusy(instructor: User): boolean {
+    const id = (instructor._id || instructor.id)?.toString();
+    if (!id) return false;
+    return this.busyVehicles.some((v: Vehicle) => {
+      const vInstId = v.current_instructor_id?.toString() || (v.current_instructor?._id || (v.current_instructor as any)?.id)?.toString();
+      return vInstId === id;
+    });
+  }
+
   /**
    * Filter out instructors who are already driving / assigned to a busy vehicle
    */
@@ -212,7 +222,7 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
     return this.instructors.filter((i: User) => {
       const id = (i._id || i.id)?.toString();
       if (!id) return true;
-      return !busyInstructorIds.has(id) && !i.is_busy;
+      return !busyInstructorIds.has(id);
     });
   }
 
@@ -531,40 +541,44 @@ export class VehicleManagementComponent implements OnInit, OnDestroy {
   }
 
   allocateVehicle(): void {
-    if (this.selectedVehicle && this.allocationData.instructor_id) {
-      const vehicleId = (this.selectedVehicle._id || this.selectedVehicle.id)?.toString() || '';
-      
-      this.vehicleService.allocateVehicle({
-        vehicle_id: vehicleId,
-        instructor_id: this.allocationData.instructor_id,
-        time_slot: this.allocationData.time_slot
-      }).subscribe({
-        next: () => {
-          const instructorName = this.instructors.find(i => (i._id || i.id)?.toString() === this.allocationData.instructor_id?.toString())?.full_name || '';
-          
-          this.timerService.startTimer(
-            vehicleId,
-            this.selectedVehicle!.registration_number,
-            this.allocationData.time_slot,
-            this.selectedVehicle!.model,
-            instructorName
-          );
+    if (!this.selectedVehicle) return;
 
-          this.showNotification(
-            `Vehicle allocated successfully! Timer set for ${this.allocationData.time_slot} minutes`,
-            'success'
-          );
-          
-          this.closeAllocateModal();
-          this.loadVehicles();
-          this.loadInstructors();
-        },
-        error: (err) => {
-          console.error('Allocation error:', err);
-          this.showNotification('Failed to allocate vehicle: ' + (err?.error?.message || 'Unknown error'), 'error');
-        }
-      });
+    if (!this.allocationData.instructor_id) {
+      alert('Please select an instructor from the dropdown list.');
+      return;
     }
+
+    const vehicleId = (this.selectedVehicle._id || this.selectedVehicle.id)?.toString() || '';
+    const instructorId = this.allocationData.instructor_id?.toString();
+    const timeSlot = Number(this.allocationData.time_slot) || 35;
+
+    this.allocateLoading = true;
+
+    this.vehicleService.allocateVehicle({
+      vehicle_id: vehicleId,
+      instructor_id: instructorId,
+      time_slot: timeSlot
+    }).subscribe({
+      next: () => {
+        this.allocateLoading = false;
+        const instructor = this.instructors.find(i => (i._id || i.id)?.toString() === instructorId);
+        const instructorName = instructor?.full_name || 'Instructor';
+
+        this.showNotification(
+          `Vehicle ${this.selectedVehicle!.registration_number} allocated to ${instructorName}! Waiting for instructor confirmation.`,
+          'success'
+        );
+        
+        this.closeAllocateModal();
+        this.loadVehicles();
+        this.loadInstructors();
+      },
+      error: (err) => {
+        this.allocateLoading = false;
+        console.error('Allocation error:', err);
+        alert('Failed to allocate vehicle: ' + (err?.error?.message || err?.message || 'Server error'));
+      }
+    });
   }
 
   // ===== RELEASE VEHICLE =====

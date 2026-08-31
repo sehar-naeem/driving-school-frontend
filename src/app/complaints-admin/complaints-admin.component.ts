@@ -98,23 +98,25 @@ export class ComplaintsAdminComponent implements OnInit {
     }
   }
 
-  getPriorityClass(priority: string): string {
+  getPriorityClass(priority?: string | null | any): string {
+    if (!priority) return 'bg-secondary';
     const classes: any = {
       urgent: 'bg-danger',
       high: 'bg-warning',
       medium: 'bg-info',
       low: 'bg-secondary'
     };
-    return classes[priority] || 'bg-secondary';
+    return classes[priority.toString().toLowerCase()] || 'bg-secondary';
   }
 
-  getStatusClass(status: string): string {
+  getStatusClass(status?: string | null | any): string {
+    if (!status) return 'bg-secondary';
     const classes: any = {
       pending: 'bg-warning',
       in_progress: 'bg-info',
       resolved: 'bg-success',
       closed: 'bg-secondary'
     };
-    return classes[status] || 'bg-secondary';
+    return classes[status.toString().toLowerCase()] || 'bg-secondary';
   }
 }

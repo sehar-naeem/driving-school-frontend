@@ -74,12 +74,6 @@ export const routes: Routes = [
         path: 'tracking-map',
         redirectTo: 'tracking',
         pathMatch: 'full'
-      },
-      // Admin Reports & Activity Logs
-      {
-        path: 'reports',
-        loadComponent: () => import('./admin-reports/admin-reports.component')
-          .then(m => m.AdminReportsComponent)
       }
     ]
   },
@@ -112,12 +106,6 @@ export const routes: Routes = [
         path: 'my-complaints',
         loadComponent: () => import('./my-complaint/my-complaint.component')
           .then(m => m.MyComplaintsComponent)
-      },
-      // Instructor Personal Reports & Driving History
-      {
-        path: 'reports',
-        loadComponent: () => import('./instructor-reports/instructor-reports.component')
-          .then(m => m.InstructorReportsComponent)
       }
     ]
   },

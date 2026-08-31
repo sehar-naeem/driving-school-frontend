@@ -60,6 +60,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     this.setupGlobalWebSocket();
+    this.startPendingExtensionWatcher();
   }
 
   ngOnDestroy(): void {
@@ -75,6 +76,8 @@ export class AppComponent implements OnInit, OnDestroy {
     // If not on public route, check if user is authenticated
     if (this.showLayout && !this.authService.isAuthenticated()) {
       this.router.navigate(['/login']);
+    } else if (this.showLayout && this.authService.isAdmin()) {
+      this.checkPendingExtensions();
     }
   }
 
@@ -96,6 +99,50 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     });
     this.subscriptions.push(extSub);
+  }
+
+  /**
+   * Watch for pending extensions every few seconds for Admins
+   * Guarantees popups appear even if websocket reconnects or during page loads
+   */
+  private startPendingExtensionWatcher(): void {
+    const interval = setInterval(() => {
+      if (this.showLayout && this.authService.isAdmin() && !this.showGlobalExtensionModal) {
+        this.checkPendingExtensions();
+      }
+    }, 4000);
+
+    this.subscriptions.push({
+      unsubscribe: () => clearInterval(interval)
+    } as any);
+  }
+
+  private checkPendingExtensions(): void {
+    if (!this.authService.isAdmin()) return;
+
+    this.vehicleService.getBusyVehicles().subscribe({
+      next: (vehicles: any[]) => {
+        const pendingVehicle = vehicles.find(v => v.extension_request?.status === 'pending' && !v.is_parked);
+        if (pendingVehicle && !this.showGlobalExtensionModal) {
+          const instructorName = pendingVehicle.current_instructor?.full_name || 'Assigned Instructor';
+          this.globalExtensionRequest = {
+            vehicle_id: pendingVehicle._id || pendingVehicle.id,
+            registration_number: pendingVehicle.registration_number,
+            model: pendingVehicle.model,
+            instructor: instructorName,
+            minutes: pendingVehicle.extension_request?.minutes || 15,
+            reason: pendingVehicle.extension_request?.reason || 'Instructor requested extra lesson time',
+            latitude: pendingVehicle.latitude,
+            longitude: pendingVehicle.longitude
+          };
+          this.adminReplyMinutes = Number(pendingVehicle.extension_request?.minutes) || 15;
+          this.adminReplyMessage = 'Approved. Please complete the lesson and return to school as early as you can.';
+          this.showGlobalExtensionModal = true;
+          console.log('🔔 Pending extension detected and presented to Admin:', this.globalExtensionRequest);
+        }
+      },
+      error: () => {}
+    });
   }
 
   // Toggle sidebar collapse/expand

@@ -23,13 +23,11 @@ export class SidebarComponent implements OnInit {
     { icon: 'bi-people-fill', label: 'Instructors', route: '/admin/instructors', badge: null },
     { icon: 'bi-car-front-fill', label: 'Vehicles', route: '/admin/vehicles', badge: null },
     { icon: 'bi-geo-alt-fill', label: 'Live Tracking', route: '/admin/tracking', badge: null },
-    { icon: 'bi-bar-chart-line-fill', label: 'Reports & Logs', route: '/admin/reports', badge: null },
     { icon: 'bi-chat-dots-fill', label: 'Complaints', route: '/admin/complaints', badge: null }
   ];
 
   instructorMenuItems = [
     { icon: 'bi-speedometer2', label: 'Dashboard', route: '/instructor/dashboard', badge: null },
-    { icon: 'bi-bar-chart-line-fill', label: 'My Session Reports', route: '/instructor/reports', badge: null },
     { icon: 'bi-exclamation-circle-fill', label: 'File Complaint', route: '/instructor/file-complaint', badge: null },
     { icon: 'bi-list-check', label: 'My Complaints', route: '/instructor/my-complaints', badge: null }
   ];

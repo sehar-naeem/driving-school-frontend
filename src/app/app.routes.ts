@@ -74,6 +74,12 @@ export const routes: Routes = [
         path: 'tracking-map',
         redirectTo: 'tracking',
         pathMatch: 'full'
+      },
+      // Reports & Analytics - Admin view
+      {
+        path: 'reports',
+        loadComponent: () => import('./admin-reports/admin-reports.component')
+          .then(m => m.AdminReportsComponent)
       }
     ]
   },
@@ -94,6 +100,12 @@ export const routes: Routes = [
         path: 'dashboard',
         loadComponent: () => import('./instructor-dashboard/instructor-dashboard.component')
           .then(m => m.InstructorDashboardComponent)
+      },
+      // My Reports - Instructor View
+      {
+        path: 'reports',
+        loadComponent: () => import('./instructor-reports/instructor-reports.component')
+          .then(m => m.InstructorReportsComponent)
       },
       // File a new complaint
       {

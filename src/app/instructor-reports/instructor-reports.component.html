@@ -1,0 +1,338 @@
+<div class="reports-container">
+  
+  <!-- Page Header -->
+  <div class="reports-header d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <h2 class="fw-bold mb-1 text-dark">
+        <i class="bi bi-file-earmark-bar-graph-fill text-success me-2"></i>
+        My Driving Reports & History
+      </h2>
+      <p class="text-muted mb-0">
+        Review your assigned lessons, completion metrics, time extensions, and session logs.
+      </p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-outline-secondary" (click)="loadMyReports()" [disabled]="loading">
+        <i class="bi bi-arrow-clockwise me-1" [class.spin]="loading"></i> Refresh
+      </button>
+      <button type="button" class="btn btn-outline-primary" (click)="printReport()">
+        <i class="bi bi-printer-fill me-1"></i> Print
+      </button>
+      <button type="button" class="btn btn-success fw-bold" (click)="exportCsv()" [disabled]="filteredLogs.length === 0">
+        <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i> Export My CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Alert -->
+  <div class="alert alert-danger d-flex align-items-center mb-4" *ngIf="error">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <div>{{ error }}</div>
+  </div>
+
+  <!-- Filter Card -->
+  <div class="card filter-card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+      <div class="row g-3 align-items-end">
+        <!-- Month Filter -->
+        <div class="col-md-5 col-sm-6">
+          <label class="form-label small fw-bold text-muted mb-1">
+            <i class="bi bi-calendar-month me-1"></i> Month / Period
+          </label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedMonth" (change)="onFilterChange()">
+            <option value="all">📅 All Time (All Months)</option>
+            <option *ngFor="let m of availableMonths" [value]="m">
+              {{ formatMonthLabel(m) }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="col-md-4 col-sm-6">
+          <label class="form-label small fw-bold text-muted mb-1">
+            <i class="bi bi-tag-fill me-1"></i> Status
+          </label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedStatus" (change)="onFilterChange()">
+            <option value="all">All Statuses</option>
+            <option value="completed">Completed Lessons</option>
+            <option value="declined">Declined Lessons</option>
+            <option value="in_progress">In Progress</option>
+            <option value="assigned">Pending Start</option>
+          </select>
+        </div>
+
+        <!-- Reset Button -->
+        <div class="col-md-3 col-sm-12">
+          <button type="button" class="btn btn-sm btn-outline-secondary w-100" (click)="resetFilters()" title="Reset All Filters">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary KPI Cards -->
+  <div class="row g-3 mb-4">
+    <!-- Total Assigned Rides -->
+    <div class="col-xl col-md-4 col-sm-6">
+      <div class="kpi-card shadow-sm border-primary">
+        <div class="kpi-icon bg-primary bg-opacity-10 text-primary">
+          <i class="bi bi-journal-bookmark-fill"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Assigned Rides</span>
+          <h3 class="kpi-value text-dark mb-0">{{ summary.total_assigned || 0 }}</h3>
+          <small class="text-muted">Total Admin Assignments</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Completed Lessons -->
+    <div class="col-xl col-md-4 col-sm-6">
+      <div class="kpi-card shadow-sm border-success">
+        <div class="kpi-icon bg-success bg-opacity-10 text-success">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Completed Lessons</span>
+          <h3 class="kpi-value text-success mb-0">{{ summary.completed_count || 0 }}</h3>
+          <small class="text-success fw-semibold">
+            <i class="bi bi-arrow-up-right"></i> {{ summary.acceptance_rate || 0 }}% Acceptance
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Declined Lessons -->
+    <div class="col-xl col-md-4 col-sm-6">
+      <div class="kpi-card shadow-sm border-danger">
+        <div class="kpi-icon bg-danger bg-opacity-10 text-danger">
+          <i class="bi bi-x-circle-fill"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Declined Lessons</span>
+          <h3 class="kpi-value text-danger mb-0">{{ summary.declined_count || 0 }}</h3>
+          <small class="text-danger fw-semibold">
+            {{ summary.decline_rate || 0 }}% Decline Rate
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Extension Requests -->
+    <div class="col-xl col-md-6 col-sm-6">
+      <div class="kpi-card shadow-sm border-warning">
+        <div class="kpi-icon bg-warning bg-opacity-10 text-warning">
+          <i class="bi bi-clock-history"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Extension Requests</span>
+          <h3 class="kpi-value text-dark mb-0">{{ summary.extension_requests || 0 }}</h3>
+          <small class="text-muted">
+            <span class="text-success fw-bold">{{ summary.extensions_approved || 0 }} Approved</span> | 
+            <span class="text-danger fw-bold">{{ summary.extensions_rejected || 0 }} Rejected</span>
+          </small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Driving Hours -->
+    <div class="col-xl col-md-6 col-sm-12">
+      <div class="kpi-card shadow-sm border-info">
+        <div class="kpi-icon bg-info bg-opacity-10 text-info">
+          <i class="bi bi-hourglass-split"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Total Teaching Hours</span>
+          <h3 class="kpi-value text-primary mb-0">{{ summary.total_hours || '0.0' }} <small class="fs-6 text-muted">hrs</small></h3>
+          <small class="text-muted">{{ summary.total_minutes || 0 }} total minutes</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session History Logs Table -->
+  <div class="tab-content-card card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <h5 class="mb-0 fw-bold text-dark">
+        <i class="bi bi-journal-text text-success me-2"></i> My Detailed Driving Session History
+      </h5>
+      <div class="search-box" style="min-width: 250px;">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+          <input type="text" class="form-control" placeholder="Search vehicle, status..." [(ngModel)]="searchTerm">
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="ps-4">Date & Time</th>
+              <th>Vehicle Allocated</th>
+              <th class="text-center">Status</th>
+              <th class="text-center">Initial Slot</th>
+              <th class="text-center">Total Duration</th>
+              <th class="text-center">Extensions</th>
+              <th class="pe-4 text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let log of filteredLogs">
+              <td class="ps-4 text-muted small font-monospace">
+                {{ log.allocated_at | date:'medium' }}
+              </td>
+              <td>
+                <span class="fw-bold text-dark">{{ log.vehicle_model }}</span>
+                <span class="font-monospace text-muted small ms-1">({{ log.registration_number }})</span>
+              </td>
+              <td class="text-center">
+                <span class="badge" 
+                      [class.bg-success]="log.status === 'completed'"
+                      [class.bg-warning]="log.status === 'in_progress'"
+                      [class.text-dark]="log.status === 'in_progress'"
+                      [class.bg-danger]="log.status === 'declined'"
+                      [class.bg-secondary]="log.status === 'assigned'">
+                  <i class="bi"
+                     [class.bi-check-circle-fill]="log.status === 'completed'"
+                     [class.bi-car-front-fill]="log.status === 'in_progress'"
+                     [class.bi-x-circle-fill]="log.status === 'declined'"
+                     [class.bi-hourglass-split]="log.status === 'assigned'"></i>
+                  {{ log.status | uppercase }}
+                </span>
+              </td>
+              <td class="text-center">{{ log.initial_time_slot }}m</td>
+              <td class="text-center fw-bold font-monospace text-primary">
+                {{ log.total_duration_minutes || log.initial_time_slot }}m
+              </td>
+              <td class="text-center">
+                <span *ngIf="log.extensions && log.extensions.length > 0" class="badge bg-warning text-dark">
+                  {{ log.extensions.length }} requested
+                </span>
+                <span *ngIf="!log.extensions || log.extensions.length === 0" class="text-muted small">None</span>
+              </td>
+              <td class="pe-4 text-end">
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="openLogDetails(log)">
+                  <i class="bi bi-eye-fill me-1"></i> View Details
+                </button>
+              </td>
+            </tr>
+
+            <tr *ngIf="filteredLogs.length === 0">
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="bi bi-inbox display-4 text-secondary d-block mb-2"></i>
+                <h6>No lesson session records found for the selected period.</h6>
+                <p class="small text-muted mb-0">When you receive vehicle assignments from the admin, your session history will be recorded here.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Log Details Modal -->
+  <div class="modal fade" [class.show]="showLogModal" [style.display]="showLogModal ? 'block' : 'none'" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content shadow-lg border-success">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-file-earmark-text-fill me-2"></i>Driving Session Details
+          </h5>
+          <button type="button" class="btn-close btn-close-white" (click)="closeLogDetails()"></button>
+        </div>
+        <div class="modal-body" *ngIf="selectedLog">
+          <div class="p-3 bg-light rounded border mb-3">
+            <small class="text-muted fw-bold d-block">VEHICLE ALLOCATED</small>
+            <h5 class="mb-0 text-dark fw-bold">{{ selectedLog.vehicle_model }}</h5>
+            <small class="font-monospace fw-bold text-success">{{ selectedLog.registration_number }}</small>
+          </div>
+
+          <div class="card border mb-3">
+            <div class="card-header bg-light py-2 fw-bold text-dark">
+              <i class="bi bi-clock-history me-1"></i> Timestamps & Lifecycle
+            </div>
+            <div class="card-body">
+              <ul class="list-group list-group-flush small">
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <span><i class="bi bi-calendar-check text-primary me-2"></i>Allocated by Admin:</span>
+                  <strong>{{ selectedLog.allocated_at | date:'medium' }}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center" *ngIf="selectedLog.started_at">
+                  <span><i class="bi bi-car-front text-success me-2"></i>Lesson Started:</span>
+                  <strong>{{ selectedLog.started_at | date:'medium' }}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center bg-danger bg-opacity-10" *ngIf="selectedLog.declined_at">
+                  <span class="text-danger fw-bold"><i class="bi bi-x-circle text-danger me-2"></i>Declined:</span>
+                  <strong class="text-danger">{{ selectedLog.declined_at | date:'medium' }}</strong>
+                </li>
+                <li class="list-group-item" *ngIf="selectedLog.declined_reason">
+                  <span class="text-danger fw-bold">Declined Reason:</span>
+                  <div class="p-2 mt-1 bg-white border border-danger rounded text-dark">
+                    {{ selectedLog.declined_reason }}
+                  </div>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center" *ngIf="selectedLog.completed_at">
+                  <span><i class="bi bi-check-circle-fill text-success me-2"></i>Session Completed / Parked:</span>
+                  <strong>{{ selectedLog.completed_at | date:'medium' }}</strong>
+                </li>
+                <li class="list-group-item" *ngIf="selectedLog.parked_note">
+                  <span class="text-muted fw-bold">Parking Notes:</span>
+                  <div class="p-2 mt-1 bg-light rounded text-dark">
+                    {{ selectedLog.parked_note }}
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Extensions History -->
+          <div class="card border">
+            <div class="card-header bg-light py-2 fw-bold text-dark d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-clock-fill text-warning me-1"></i>Extension Requests ({{ selectedLog.extensions?.length || 0 }})</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive" *ngIf="selectedLog.extensions && selectedLog.extensions.length > 0">
+                <table class="table table-sm mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Requested</th>
+                      <th>Reason</th>
+                      <th>Status</th>
+                      <th>Admin Minutes</th>
+                      <th>Admin Message</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let ext of selectedLog.extensions">
+                      <td class="small font-monospace">+{{ ext.requested_minutes }}m</td>
+                      <td class="small">{{ ext.reason || 'N/A' }}</td>
+                      <td>
+                        <span class="badge" [class.bg-success]="ext.status === 'approved'" [class.bg-danger]="ext.status === 'rejected'" [class.bg-warning]="ext.status === 'pending'" [class.text-dark]="ext.status === 'pending'">
+                          {{ ext.status | uppercase }}
+                        </span>
+                      </td>
+                      <td class="small font-monospace">+{{ ext.admin_minutes || 0 }}m</td>
+                      <td class="small text-muted">{{ ext.admin_message || 'N/A' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div *ngIf="!selectedLog.extensions || selectedLog.extensions.length === 0" class="p-3 text-muted small text-center">
+                No time extension requests were submitted during this session.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeLogDetails()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Backdrop -->
+  <div class="modal-backdrop fade show" *ngIf="showLogModal"></div>
+</div>

@@ -20,6 +20,10 @@ export class UserService {
       );
   }
 
+  getInstructors(): Observable<User[]> {
+    return this.getAllInstructors();
+  }
+
   /** ✅ GET INSTRUCTOR BY ID - ACCEPTS STRING */
   getInstructorById(id: string): Observable<User> {
     return this.http.get<any>(`${this.API_URL}/instructors/${id}`)

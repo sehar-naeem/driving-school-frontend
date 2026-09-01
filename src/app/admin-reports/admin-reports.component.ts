@@ -77,16 +77,16 @@ export class AdminReportsComponent implements OnInit {
   }
 
   loadFilterOptions(): void {
-    this.userService.getInstructors().subscribe({
-      next: (instructors) => {
+    this.userService.getAllInstructors().subscribe({
+      next: (instructors: User[]) => {
         this.instructors = instructors || [];
       },
       error: () => {}
     });
 
     this.vehicleService.getAllVehicles().subscribe({
-      next: (vehicles: any) => {
-        this.vehicles = Array.isArray(vehicles) ? vehicles : (vehicles?.vehicles || []);
+      next: (vehicles: Vehicle[]) => {
+        this.vehicles = Array.isArray(vehicles) ? vehicles : [];
       },
       error: () => {}
     });
